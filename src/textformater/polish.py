@@ -149,11 +149,19 @@ def _fix_emdash_spacing(text: str) -> str:
 
 
 def _fix_quotes(text: str) -> str:
-    """Fix spacing around Chinese quotation marks "".
+    """Fix spacing around Chinese quotation marks "" with smart CJK punctuation handling.
 
     Rules:
     - Add space before opening quote " if preceded by alphanumeric or Chinese
     - Add space after closing quote " if followed by alphanumeric or Chinese
+    - NO space added when adjacent to CJK punctuation with built-in visual spacing:
+      * Terminal punctuation: ，。！？；：、
+      * Book title marks: 《》
+      * Corner brackets: 「」『』
+      * Lenticular brackets: 【】
+      * Parentheses: （）
+      * Angle brackets: 〈〉
+      * Em-dash: ——
 
     Args:
         text: Text to process
@@ -166,10 +174,61 @@ def _fix_quotes(text: str) -> str:
     opening_quote = '\u201c'
     closing_quote = '\u201d'
 
-    # Add space before opening quote "
-    text = re.sub(f'([A-Za-z0-9\u4e00-\u9fff]){opening_quote}', f'\\1 {opening_quote}', text)
-    # Add space after closing quote "
-    text = re.sub(f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff])', f'{closing_quote} \\1', text)
+    # CJK punctuation with built-in visual spacing (no space needed with quotes)
+    # Terminal punctuation
+    cjk_terminal = '，。！？；：、'
+    # Closing brackets/parentheses (have space on left side)
+    cjk_closing = '》」』】）〉'
+    # Opening brackets/parentheses (have space on right side)
+    cjk_opening = '《「『【（〈'
+    # Em-dash (two chars)
+    em_dash = '——'
+
+    # All punctuation that should not have space before opening quote
+    no_space_before = cjk_closing + cjk_terminal
+    # All punctuation that should not have space after closing quote
+    no_space_after = cjk_opening + cjk_terminal
+
+    def repl_before(match: re.Match[str]) -> str:
+        """Add space before opening quote only if not preceded by CJK punct or em-dash."""
+        before = match.group(1)
+        # Check if we should skip adding space
+        if before in no_space_before:
+            return f'{before}{opening_quote}'
+        # Check for em-dash (need to look at last 2 chars of text before match)
+        # This is handled by checking if match starts with ——
+        return f'{before} {opening_quote}'
+
+    def repl_after(match: re.Match[str]) -> str:
+        """Add space after closing quote only if not followed by CJK punct or em-dash."""
+        after = match.group(1)
+        # Check if we should skip adding space
+        if after in no_space_after:
+            return f'{closing_quote}{after}'
+        return f'{closing_quote} {after}'
+
+    # Handle em-dash before opening quote (need special handling for 2-char sequence)
+    # Replace ——" with ——" (no space)
+    text = re.sub(f'{em_dash}{opening_quote}', f'{em_dash}{opening_quote}', text)
+
+    # Handle em-dash after closing quote
+    # Replace "—— with "—— (no space)
+    text = re.sub(f'{closing_quote}{em_dash}', f'{closing_quote}{em_dash}', text)
+
+    # Add space before " if preceded by alphanumeric/Chinese (but not CJK punct)
+    text = re.sub(
+        f'([A-Za-z0-9\u4e00-\u9fff{cjk_closing}{cjk_terminal}]){opening_quote}',
+        repl_before,
+        text
+    )
+
+    # Add space after " if followed by alphanumeric/Chinese (but not CJK punct)
+    text = re.sub(
+        f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff{cjk_opening}{cjk_terminal}])',
+        repl_after,
+        text
+    )
+
     return text
 
 

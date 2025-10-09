@@ -19,9 +19,39 @@ ellipsis_normalization = true  # Convert ". . ." to "..."
 # Chinese-specific rules
 dash_conversion = true          # Convert "--" to "——"
 emdash_spacing = true          # Fix spacing around ——
-quote_spacing = true           # Add spaces around ""
+quote_spacing = true           # Add spaces around "" (smart: excludes CJK punctuation)
 cjk_english_spacing = true     # Add spaces between Chinese & English/numbers
 space_collapsing = true        # Collapse multiple spaces to single space
+
+# ============================================================================
+# Quote Spacing Details (Built-in Smart Behavior)
+# ============================================================================
+# The `quote_spacing` rule intelligently handles Chinese quotes "" with
+# CJK full-width punctuation that already has visual spacing built-in.
+#
+# NO SPACE added when quotes are adjacent to:
+#   • Terminal punctuation: ，。！？；：、
+#   • Book title marks: 《》「」『』
+#   • Brackets: 【】（）〈〉
+#   • Em-dash: ——
+#
+# Examples of CORRECT behavior (no extra spaces):
+#   文本，"引用"。结束     ✓ (comma and period have built-in spacing)
+#   《书名》"引用"（注）   ✓ (brackets have built-in spacing)
+#   前文——"引用"——后文     ✓ (em-dash has built-in spacing)
+#
+# Examples of INCORRECT behavior (would create double spacing):
+#   文本， "引用" 。结束   ✗ (double spacing - too much visual space)
+#   《书名》 "引用" （注） ✗ (double spacing - looks wrong)
+#
+# Spaces ARE STILL added with alphanumeric/Chinese characters:
+#   文本"引用"文本   → 文本 "引用" 文本   ✓ (space needed for readability)
+#   English"中文"    → English "中文"      ✓ (space needed for readability)
+#   数字123"内容"    → 数字 123 "内容"     ✓ (space needed for readability)
+#
+# This smart behavior is built into the `quote_spacing` rule and cannot be
+# customized via custom_rules. To disable quote spacing entirely:
+#   quote_spacing = false
 
 # ============================================================================
 # Custom Regex Rules

@@ -9,7 +9,7 @@ A Python CLI tool for polishing text with Chinese typography rules. Automaticall
 
 ### Chinese-Specific Rules
 - **Em-dash spacing**: Converts `--` to `——` with smart spacing around Chinese quotes `《》` and parentheses `（）`
-- **Quote spacing**: Adds spaces around Chinese quotation marks `“”`
+- **Quote spacing**: Adds spaces around Chinese quotation marks `""` (smart: excludes CJK punctuation with built-in visual spacing like ，。！？《》（）等)
 - **CJK-English spacing**: Automatically adds spaces between Chinese characters and English letters/numbers
 - **Multiple space collapsing**: Reduces consecutive spaces to single space
 
@@ -308,6 +308,24 @@ ctf --show-config --config my-rules.toml
 | `中文English` | `中文 English` |
 | `数字123` | `数字 123` |
 | `100个item` | `100 个 item` |
+
+### Quote Spacing (Smart CJK Punctuation Handling)
+
+The quote spacing rule intelligently avoids adding spaces when quotes are adjacent to CJK punctuation that already has visual spacing built-in:
+
+| Before | After | Rule |
+|--------|-------|------|
+| `文本"引用"文本` | `文本 "引用" 文本` | Regular text: add spaces for readability |
+| `文本，"引用"。` | `文本，"引用"。` | Punctuation ，。: NO space (already has visual spacing) |
+| `《书名》"引用"（注）` | `《书名》"引用"（注）` | Brackets 《》（）: NO space (already has visual spacing) |
+| `前文——"引用"——后文` | `前文——"引用"——后文` | Em-dash ——: NO space (already has visual spacing) |
+| `English"中文"123` | `English "中文" 123` | Alphanumeric: add spaces for readability |
+
+**CJK punctuation excluded from spacing:**
+- Terminal punctuation: ，。！？；：、
+- Book title marks & corner brackets: 《》「」『』
+- Brackets: 【】（）〈〉
+- Em-dash: ——
 
 ### Ellipsis Normalization
 

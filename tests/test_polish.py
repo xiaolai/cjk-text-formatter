@@ -112,6 +112,60 @@ class TestFixQuotes:
         assert _fix_quotes('\u201c内容\u201d文本') == '\u201c内容\u201d 文本'
         assert _fix_quotes('\u201ctest\u201d123') == '\u201ctest\u201d 123'
 
+    def test_quote_spacing_with_terminal_punctuation(self):
+        """No space between quotes and CJK terminal punctuation (，。！？；：、)."""
+        # Comma before opening quote, period after closing quote
+        assert _fix_quotes('文本，\u201c引用\u201d。') == '文本，\u201c引用\u201d。'
+        # Period before opening quote, Chinese after closing quote
+        assert _fix_quotes('开始。\u201c内容\u201d结束') == '开始。\u201c内容\u201d 结束'
+        # Exclamation before opening quote, Chinese after closing quote
+        assert _fix_quotes('问题！\u201c回答\u201d文本') == '问题！\u201c回答\u201d 文本'
+        # Chinese before opening quote, question mark after closing quote
+        assert _fix_quotes('文本\u201c问题\u201d？结束') == '文本 \u201c问题\u201d？结束'
+        # Semicolon before opening quote, Chinese after closing quote
+        assert _fix_quotes('列表；\u201c项目\u201d内容') == '列表；\u201c项目\u201d 内容'
+        # Colon before opening quote, Chinese after closing quote
+        assert _fix_quotes('标题：\u201c内容\u201d文本') == '标题：\u201c内容\u201d 文本'
+        # Enumeration comma before opening quote, Chinese after closing quote
+        assert _fix_quotes('一、\u201c项目\u201d二') == '一、\u201c项目\u201d 二'
+
+    def test_quote_spacing_with_book_title_marks(self):
+        """No space between quotes and book title marks 《》."""
+        assert _fix_quotes('《书名》\u201c引用\u201d文本') == '《书名》\u201c引用\u201d 文本'
+        assert _fix_quotes('文本\u201c引用\u201d《书名》') == '文本 \u201c引用\u201d《书名》'
+        assert _fix_quotes('《A》\u201cB\u201d《C》') == '《A》\u201cB\u201d《C》'
+
+    def test_quote_spacing_with_corner_brackets(self):
+        """No space between quotes and corner brackets 「」『』."""
+        # Single corner brackets
+        assert _fix_quotes('「日文」\u201c引用\u201d文本') == '「日文」\u201c引用\u201d 文本'
+        assert _fix_quotes('文本\u201c引用\u201d「日文」') == '文本 \u201c引用\u201d「日文」'
+        # Double corner brackets
+        assert _fix_quotes('『重点』\u201c引用\u201d文本') == '『重点』\u201c引用\u201d 文本'
+        assert _fix_quotes('文本\u201c引用\u201d『重点』') == '文本 \u201c引用\u201d『重点』'
+
+    def test_quote_spacing_with_lenticular_brackets(self):
+        """No space between quotes and lenticular brackets 【】."""
+        assert _fix_quotes('【注】\u201c引用\u201d文本') == '【注】\u201c引用\u201d 文本'
+        assert _fix_quotes('文本\u201c引用\u201d【注】') == '文本 \u201c引用\u201d【注】'
+
+    def test_quote_spacing_with_parentheses(self):
+        """No space between quotes and full-width parentheses （）."""
+        assert _fix_quotes('（备注）\u201c引用\u201d文本') == '（备注）\u201c引用\u201d 文本'
+        assert _fix_quotes('文本\u201c引用\u201d（备注）') == '文本 \u201c引用\u201d（备注）'
+
+    def test_quote_spacing_with_angle_brackets(self):
+        """No space between quotes and angle brackets 〈〉."""
+        assert _fix_quotes('〈标记〉\u201c引用\u201d文本') == '〈标记〉\u201c引用\u201d 文本'
+        assert _fix_quotes('文本\u201c引用\u201d〈标记〉') == '文本 \u201c引用\u201d〈标记〉'
+
+    def test_quote_spacing_with_emdash(self):
+        """No space between quotes and em-dash ——."""
+        assert _fix_quotes('前文——\u201c引用\u201d后文') == '前文——\u201c引用\u201d 后文'
+        assert _fix_quotes('前文\u201c引用\u201d——后文') == '前文 \u201c引用\u201d——后文'
+        # Both sides with em-dash
+        assert _fix_quotes('前——\u201c引用\u201d——后') == '前——\u201c引用\u201d——后'
+
 
 class TestSpaceBetween:
     """Test spacing between Chinese and English/numbers."""
