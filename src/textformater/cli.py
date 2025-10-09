@@ -14,7 +14,7 @@ from .processors import process_file, find_files
 
 
 @click.command()
-@click.version_option(version=__version__, prog_name='textformat')
+@click.version_option(version=__version__, prog_name='ctf')
 @click.argument('input', required=False)
 @click.option(
     '--output', '-o',
@@ -94,12 +94,12 @@ def main(
 
       \b
       # Format text directly
-      textformat "文本English混合"
+      ctf "文本English混合"
 
       \b
       # Read from stdin
-      echo "文本English混合" | textformat
-      cat input.txt | textformat
+      echo "文本English混合" | ctf
+      cat input.txt | ctf
 
       \b
       # Format a file
@@ -108,8 +108,8 @@ def main(
 
       \b
       # Format files in a directory
-      textformat ./docs/
-      textformat ./docs/ --recursive --inplace
+      ctf ./docs/
+      ctf ./docs/ --recursive --inplace
 
       \b
       # Dry run (preview changes)
@@ -143,7 +143,7 @@ def main(
             return
         else:
             click.echo("Error: No input provided", err=True)
-            click.echo("Try 'textformat --help' for usage information", err=True)
+            click.echo("Try 'ctf --help' for usage information", err=True)
             sys.exit(1)
 
     # Check if input is a file or directory
@@ -337,8 +337,8 @@ def _show_effective_config(rule_config, config_path: Path | None) -> None:
         click.echo(f"  Custom: {config_path}")
     else:
         # Check which default config is being used
-        project_config = Path.cwd() / "textformat.toml"
-        user_config = Path.home() / ".config" / "textformat.toml"
+        project_config = Path.cwd() / "cjk-text-formatter.toml"
+        user_config = Path.home() / ".config" / "cjk-text-formatter.toml"
 
         if project_config.exists():
             click.echo(f"  Project: {project_config}")

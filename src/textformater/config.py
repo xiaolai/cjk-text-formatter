@@ -51,8 +51,8 @@ def load_config(config_path: Path | None = None) -> RuleConfig:
 
     Configuration priority (highest to lowest):
     1. config_path (if provided via --config flag)
-    2. ./textformat.toml (project root)
-    3. ~/.config/textformat.toml (user config)
+    2. ./cjk-text-formatter.toml (project root)
+    3. ~/.config/cjk-text-formatter.toml (user config)
     4. Default config (all rules enabled)
 
     Configs are merged: user config applied first, then project config overrides.
@@ -73,14 +73,14 @@ def load_config(config_path: Path | None = None) -> RuleConfig:
     custom_rules = []
 
     # Load user config first (if exists)
-    user_config_path = Path.home() / ".config" / "textformat.toml"
+    user_config_path = Path.home() / ".config" / "cjk-text-formatter.toml"
     if user_config_path.exists():
         user_config = _load_toml_file(user_config_path)
         if user_config:
             _merge_config_data(rules, custom_rules, user_config)
 
     # Load project config (overrides user config)
-    project_config_path = Path.cwd() / "textformat.toml"
+    project_config_path = Path.cwd() / "cjk-text-formatter.toml"
     if project_config_path.exists():
         project_config = _load_toml_file(project_config_path)
         if project_config:

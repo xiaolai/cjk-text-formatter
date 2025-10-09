@@ -9,7 +9,7 @@ A Python CLI tool for polishing text with Chinese typography rules. Automaticall
 
 ### Chinese-Specific Rules
 - **Em-dash spacing**: Converts `--` to `——` with smart spacing around Chinese quotes `《》` and parentheses `（）`
-- **Quote spacing**: Adds spaces around Chinese quotation marks `""`
+- **Quote spacing**: Adds spaces around Chinese quotation marks `“”`
 - **CJK-English spacing**: Automatically adds spaces between Chinese characters and English letters/numbers
 - **Multiple space collapsing**: Reduces consecutive spaces to single space
 
@@ -28,17 +28,17 @@ A Python CLI tool for polishing text with Chinese typography rules. Automaticall
 
 ```bash
 # Basic installation
-pip install text-formater
+pip install cjk-text-formatter
 
 # With HTML support (optional)
-pip install text-formater[html]
+pip install cjk-text-formatter[html]
 ```
 
 ### Install from Source
 
 ```bash
-git clone https://github.com/xiaolai/text-formater.git
-cd text-formater
+git clone https://github.com/xiaolai/cjk-text-formatter.git
+cd cjk-text-formatter
 pip install -e .
 
 # Or with HTML support
@@ -49,13 +49,13 @@ pip install -e ".[html]"
 
 ```bash
 # Check version
-textformat --version
+ctf --version
 
 # Show help
-textformat --help
+ctf --help
 
 # Quick test
-textformat "文本English混合"
+ctf "文本English混合"
 # Expected output: 文本 English 混合
 ```
 
@@ -65,32 +65,32 @@ textformat "文本English混合"
 
 ```bash
 # Format text directly
-textformat "文本English混合"
+ctf "文本English混合"
 # Output: 文本 English 混合
 
 # Format with em-dash
-textformat "《书名》--作者"
+ctf "《书名》--作者"
 # Output: 《书名》—— 作者
 
 # Read from stdin
-echo "文本English混合" | textformat
+echo "文本English混合" | ctf
 
 # Format a single file
-textformat input.txt
-textformat input.md --output formatted.md
+ctf input.txt
+ctf input.md --output formatted.md
 
 # Format in-place
-textformat document.txt --inplace
+ctf document.txt --inplace
 
 # Preview changes without writing (dry-run)
-textformat document.txt --dry-run
+ctf document.txt --dry-run
 
 # Format all files in a directory
-textformat ./docs/ --inplace
-textformat ./docs/ --recursive --inplace
+ctf ./docs/ --inplace
+ctf ./docs/ --recursive --inplace
 
 # Format specific file types only
-textformat ./docs/ --inplace -e .md -e .txt
+ctf ./docs/ --inplace -e .md -e .txt
 ```
 
 ### Python API
@@ -132,19 +132,19 @@ for file in files:
 
 Configuration is loaded with the following priority (highest to lowest):
 
-1. **Custom path**: `textformat --config /path/to/config.toml`
-2. **Project root**: `./textformat.toml`
-3. **User config**: `~/.config/textformat.toml`
+1. **Custom path**: `ctf --config /path/to/config.toml`
+2. **Project root**: `./cjk-text-formatter.toml`
+3. **User config**: `~/.config/cjk-text-formatter.toml`
 4. **Defaults**: All rules enabled
 
 ### Quick Start
 
 ```bash
 # Copy example config to your project
-cp textformat.toml.example textformat.toml
+cp cjk-text-formatter.toml.example cjk-text-formatter.toml
 
 # Or to user config
-cp textformat.toml.example ~/.config/textformat.toml
+cp cjk-text-formatter.toml.example ~/.config/cjk-text-formatter.toml
 
 # Edit and customize rules
 ```
@@ -152,7 +152,7 @@ cp textformat.toml.example ~/.config/textformat.toml
 ### Configuration Format
 
 ```toml
-# textformat.toml
+# cjk-text-formatter.toml
 
 [rules]
 # Toggle built-in rules on/off
@@ -184,7 +184,7 @@ description = "Use proper multiplication sign"
 | `ellipsis_normalization` | ✅ | Convert `. . .` to `...` |
 | `dash_conversion` | ✅ | Convert `--` to `——` |
 | `emdash_spacing` | ✅ | Fix spacing around `——` |
-| `quote_spacing` | ✅ | Add spaces around `""` |
+| `quote_spacing` | ✅ | Add spaces around `“”` |
 | `cjk_english_spacing` | ✅ | Space between Chinese & English |
 | `space_collapsing` | ✅ | Collapse multiple spaces |
 
@@ -226,13 +226,13 @@ replacement = '"\1"'
 
 ```bash
 # Use project config (auto-detected)
-textformat input.txt
+ctf input.txt
 
 # Use specific config file
-textformat input.txt --config my-rules.toml
+ctf input.txt --config my-rules.toml
 
 # Show what changed (verbose mode)
-textformat input.txt --verbose
+ctf input.txt --verbose
 
 # Disable a rule temporarily (edit config file)
 # Set: dash_conversion = false
@@ -242,14 +242,14 @@ textformat input.txt --verbose
 
 ```bash
 # Validate a config file
-textformat --validate-config textformat.toml
+ctf --validate-config cjk-text-formatter.toml
 
 # Example output for valid config:
-# Validating: textformat.toml
+# Validating: cjk-text-formatter.toml
 # ✓ Configuration is valid
 
 # Example output for invalid config:
-# Validating: textformat.toml
+# Validating: cjk-text-formatter.toml
 # Errors:
 #   ✗ Unknown rule name: 'unknown_rule'. Valid rules: ...
 #   ✗ custom_rules[0] (bad_regex): Invalid regex pattern: ...
@@ -266,16 +266,16 @@ textformat --validate-config textformat.toml
 
 ```bash
 # Show which config is active and what rules are enabled
-textformat --show-config
+ctf --show-config
 
 # With custom config
-textformat --show-config --config my-rules.toml
+ctf --show-config --config my-rules.toml
 
 # Example output:
 # Effective Configuration:
 #
 # Config Source:
-#   Project: ./textformat.toml
+#   Project: ./cjk-text-formatter.toml
 #
 # Built-in Rules:
 #   ✓ cjk_english_spacing: True
@@ -335,7 +335,7 @@ pytest tests/test_polish.py -v
 ### Project Structure
 
 ```
-text-formater/
+cjk-text-formatter/
 ├── src/
 │   └── textformater/
 │       ├── __init__.py
@@ -395,14 +395,14 @@ To add a new typography rule:
 ### Format Chinese-English Mixed Content
 
 ```bash
-$ textformat "Python是一门编程语言，有3.11版本。"
+$ ctf "Python是一门编程语言，有3.11版本。"
 Python 是一门编程语言，有 3.11 版本。
 ```
 
 ### Format Book Titles with Em-Dash
 
 ```bash
-$ textformat "《人生》--路遥著"
+$ ctf "《人生》--路遥著"
 《人生》—— 路遥著
 ```
 
@@ -410,10 +410,10 @@ $ textformat "《人生》--路遥著"
 
 ```bash
 # Format all markdown files in docs/ and subdirectories
-textformat ./docs/ --recursive --inplace -e .md
+ctf ./docs/ --recursive --inplace -e .md
 
 # Preview changes first
-textformat ./docs/ --recursive --dry-run -e .md
+ctf ./docs/ --recursive --dry-run -e .md
 ```
 
 ### Process with Preserved Code Blocks
@@ -431,7 +431,7 @@ $ cat document.md
 text--more
 \`\`\`
 
-$ textformat document.md --inplace
+$ ctf document.md --inplace
 $ cat document.md
 # 标题 Title
 

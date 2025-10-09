@@ -3,8 +3,8 @@ requires = ["setuptools>=65.0,<70", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "text-formater"
-version = "0.1.1"
+name = "cjk-text-formatter"
+version = "0.2.0"
 description = "A CLI tool for polishing text with Chinese typography rules"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -33,9 +33,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/xiaolai/text-formater"
-Repository = "https://github.com/xiaolai/text-formater"
-Issues = "https://github.com/xiaolai/text-formater/issues"
+Homepage = "https://github.com/xiaolai/cjk-text-formatter"
+Repository = "https://github.com/xiaolai/cjk-text-formatter"
+Issues = "https://github.com/xiaolai/cjk-text-formatter/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -48,7 +48,7 @@ html = [
 ]
 
 [project.scripts]
-textformat = "textformater.cli:main"
+ctf = "textformater.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

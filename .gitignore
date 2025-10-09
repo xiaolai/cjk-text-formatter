@@ -45,3 +45,6 @@ Thumbs.db
 CLAUDE.md
 .codex/
 AGENTS.md
+
+# User config file
+cjk-text-formatter.toml

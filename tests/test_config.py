@@ -33,14 +33,14 @@ class TestConfigLoading:
             assert config.custom_rules == []
 
     def test_load_config_from_project_root(self, tmp_path):
-        """Test loading config from project root (./textformat.toml)."""
+        """Test loading config from project root (./cjk-text-formatter.toml)."""
         config_content = """
 [rules]
 ellipsis_normalization = true
 dash_conversion = false
 cjk_english_spacing = true
 """
-        config_file = tmp_path / "textformat.toml"
+        config_file = tmp_path / "cjk-text-formatter.toml"
         config_file.write_text(config_content)
 
         with patch('pathlib.Path.cwd', return_value=tmp_path):
@@ -51,10 +51,10 @@ cjk_english_spacing = true
             assert config.rules['cjk_english_spacing'] is True
 
     def test_load_config_from_user_home(self, tmp_path):
-        """Test loading config from user home (~/.config/textformat.toml)."""
+        """Test loading config from user home (~/.config/cjk-text-formatter.toml)."""
         config_dir = tmp_path / ".config"
         config_dir.mkdir()
-        config_file = config_dir / "textformat.toml"
+        config_file = config_dir / "cjk-text-formatter.toml"
 
         config_content = """
 [rules]
@@ -75,7 +75,7 @@ quote_spacing = false
         # Create user config
         user_config_dir = tmp_path / "home" / ".config"
         user_config_dir.mkdir(parents=True)
-        user_config = user_config_dir / "textformat.toml"
+        user_config = user_config_dir / "cjk-text-formatter.toml"
         user_config.write_text("""
 [rules]
 dash_conversion = false
@@ -85,7 +85,7 @@ cjk_english_spacing = false
         # Create project config
         project_dir = tmp_path / "project"
         project_dir.mkdir()
-        project_config = project_dir / "textformat.toml"
+        project_config = project_dir / "cjk-text-formatter.toml"
         project_config.write_text("""
 [rules]
 dash_conversion = true
@@ -118,7 +118,7 @@ pattern = '(\\d+)\\s*x\\s*(\\d+)'
 replacement = '\\1×\\2'
 description = "Use multiplication sign"
 """
-        config_file = tmp_path / "textformat.toml"
+        config_file = tmp_path / "cjk-text-formatter.toml"
         config_file.write_text(config_content)
 
         with patch('pathlib.Path.cwd', return_value=tmp_path):
