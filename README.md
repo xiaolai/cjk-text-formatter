@@ -124,6 +124,171 @@ for file in files:
     # Do something with result
 ```
 
+## Configuration
+
+**Requires Python 3.11+** (uses built-in `tomllib`). On Python <3.11, all rules are enabled by default.
+
+### Config File Locations
+
+Configuration is loaded with the following priority (highest to lowest):
+
+1. **Custom path**: `textformat --config /path/to/config.toml`
+2. **Project root**: `./textformat.toml`
+3. **User config**: `~/.config/textformat.toml`
+4. **Defaults**: All rules enabled
+
+### Quick Start
+
+```bash
+# Copy example config to your project
+cp textformat.toml.example textformat.toml
+
+# Or to user config
+cp textformat.toml.example ~/.config/textformat.toml
+
+# Edit and customize rules
+```
+
+### Configuration Format
+
+```toml
+# textformat.toml
+
+[rules]
+# Toggle built-in rules on/off
+ellipsis_normalization = true
+dash_conversion = true
+emdash_spacing = true
+quote_spacing = true
+cjk_english_spacing = true
+space_collapsing = true
+
+# Define custom regex rules
+[[custom_rules]]
+name = "arrow_unicode"
+pattern = '->'
+replacement = '→'
+description = "Use Unicode arrows"
+
+[[custom_rules]]
+name = "multiply_sign"
+pattern = '(\d+)\s*x\s*(\d+)'
+replacement = '\1×\2'
+description = "Use proper multiplication sign"
+```
+
+### Built-in Rules
+
+| Rule | Default | Description |
+|------|---------|-------------|
+| `ellipsis_normalization` | ✅ | Convert `. . .` to `...` |
+| `dash_conversion` | ✅ | Convert `--` to `——` |
+| `emdash_spacing` | ✅ | Fix spacing around `——` |
+| `quote_spacing` | ✅ | Add spaces around `""` |
+| `cjk_english_spacing` | ✅ | Space between Chinese & English |
+| `space_collapsing` | ✅ | Collapse multiple spaces |
+
+### Custom Rules
+
+Add your own regex-based transformations:
+
+```toml
+[[custom_rules]]
+name = "rule_name"              # Identifier (required)
+pattern = 'regex pattern'       # Regex to match (required)
+replacement = 'replacement'     # Replacement text (required)
+description = "What it does"    # Optional description
+```
+
+**Examples:**
+
+```toml
+# Unicode fractions
+[[custom_rules]]
+name = "fraction_half"
+pattern = '\b1/2\b'
+replacement = '½'
+
+# Temperature symbols
+[[custom_rules]]
+name = "celsius"
+pattern = '(\d+)\s*C\b'
+replacement = '\1°C'
+
+# Smart quotes
+[[custom_rules]]
+name = "double_quotes"
+pattern = '"([^"]+)"'
+replacement = '"\1"'
+```
+
+### Usage with Config
+
+```bash
+# Use project config (auto-detected)
+textformat input.txt
+
+# Use specific config file
+textformat input.txt --config my-rules.toml
+
+# Show what changed (verbose mode)
+textformat input.txt --verbose
+
+# Disable a rule temporarily (edit config file)
+# Set: dash_conversion = false
+```
+
+### Validating Config Files
+
+```bash
+# Validate a config file
+textformat --validate-config textformat.toml
+
+# Example output for valid config:
+# Validating: textformat.toml
+# ✓ Configuration is valid
+
+# Example output for invalid config:
+# Validating: textformat.toml
+# Errors:
+#   ✗ Unknown rule name: 'unknown_rule'. Valid rules: ...
+#   ✗ custom_rules[0] (bad_regex): Invalid regex pattern: ...
+```
+
+**What gets validated:**
+- ✅ File exists and is readable
+- ✅ Valid TOML syntax
+- ✅ Rule names match known built-in rules
+- ✅ Custom rules have required fields (`name`, `pattern`, `replacement`)
+- ✅ Regex patterns compile successfully
+
+### Showing Effective Config
+
+```bash
+# Show which config is active and what rules are enabled
+textformat --show-config
+
+# With custom config
+textformat --show-config --config my-rules.toml
+
+# Example output:
+# Effective Configuration:
+#
+# Config Source:
+#   Project: ./textformat.toml
+#
+# Built-in Rules:
+#   ✓ cjk_english_spacing: True
+#   ✗ dash_conversion: False
+#   ...
+#
+# Custom Rules:
+#   [1] unicode_arrows
+#       pattern: ->
+#       replacement: →
+#       description: Use Unicode right arrow
+```
+
 ## Typography Rules
 
 ### Em-Dash Spacing
@@ -219,6 +384,11 @@ To add a new typography rule:
 | `--recursive` | `-r` | Process directories recursively |
 | `--dry-run` | `-n` | Preview changes without writing |
 | `--extensions EXT` | `-e` | File extensions to process (e.g., `-e .txt -e .md`) |
+| `--verbose` | `-v` | Show summary of changes made |
+| `--config PATH` | `-c` | Path to custom config file |
+| `--validate-config PATH` | | Validate config file and exit |
+| `--show-config` | | Show effective configuration and exit |
+| `--version` | | Show version and exit |
 
 ## Examples
 

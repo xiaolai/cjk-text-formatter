@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 
 from . import __version__
+from .config import load_config, validate_config as validate_config_file
 from .polish import polish_text, polish_text_verbose
 from .processors import process_file, find_files
 
@@ -45,6 +46,21 @@ from .processors import process_file, find_files
     is_flag=True,
     help='Show summary of changes made',
 )
+@click.option(
+    '--config', '-c',
+    type=click.Path(path_type=Path, exists=True),
+    help='Path to custom config file',
+)
+@click.option(
+    '--validate-config',
+    type=click.Path(path_type=Path, exists=True),
+    help='Validate a configuration file and exit',
+)
+@click.option(
+    '--show-config',
+    is_flag=True,
+    help='Show effective configuration and exit',
+)
 def main(
     input: str | None,
     output: Path | None,
@@ -53,6 +69,9 @@ def main(
     dry_run: bool,
     extensions: tuple[str, ...],
     verbose: bool,
+    config: Path | None,
+    validate_config: Path | None,
+    show_config: bool,
 ):
     """Format text with Chinese typography rules.
 
@@ -96,16 +115,30 @@ def main(
       # Dry run (preview changes)
       textformat input.txt --dry-run
     """
+    # Handle --validate-config command (validate and exit)
+    if validate_config:
+        result = validate_config_file(validate_config)
+        click.echo(result.format_report())
+        sys.exit(0 if result.is_valid else 1)
+
+    # Load configuration
+    rule_config = load_config(config_path=config)
+
+    # Handle --show-config command (show config and exit)
+    if show_config:
+        _show_effective_config(rule_config, config)
+        sys.exit(0)
+
     # If no input provided, read from stdin
     if input is None:
         if not sys.stdin.isatty():
             input_text = sys.stdin.read()
             if verbose:
-                result, stats = polish_text_verbose(input_text)
+                result, stats = polish_text_verbose(input_text, config=rule_config)
                 click.echo(result)
                 click.echo(stats.format_summary(), err=True)
             else:
-                result = polish_text(input_text)
+                result = polish_text(input_text, config=rule_config)
                 click.echo(result)
             return
         else:
@@ -119,16 +152,16 @@ def main(
     if input_path.exists():
         # Input is a file or directory
         if input_path.is_file():
-            process_single_file(input_path, output, inplace, dry_run, verbose)
+            process_single_file(input_path, output, inplace, dry_run, verbose, rule_config)
         elif input_path.is_dir():
-            process_directory(input_path, inplace, recursive, dry_run, extensions, verbose)
+            process_directory(input_path, inplace, recursive, dry_run, extensions, verbose, rule_config)
         else:
             click.echo(f"Error: {input_path} is not a file or directory", err=True)
             sys.exit(1)
     else:
         # Treat input as text string
         if verbose:
-            result, stats = polish_text_verbose(input)
+            result, stats = polish_text_verbose(input, config=rule_config)
             if output:
                 if dry_run:
                     click.echo(f"Would write to: {output}")
@@ -141,7 +174,7 @@ def main(
                 click.echo(result)
                 click.echo(stats.format_summary(), err=True)
         else:
-            result = polish_text(input)
+            result = polish_text(input, config=rule_config)
             if output:
                 if dry_run:
                     click.echo(f"Would write to: {output}")
@@ -159,6 +192,7 @@ def process_single_file(
     inplace: bool,
     dry_run: bool,
     verbose: bool,
+    config,
 ):
     """Process a single file.
 
@@ -168,13 +202,14 @@ def process_single_file(
         inplace: Modify file in place
         dry_run: Preview changes without writing
         verbose: Show statistics about changes
+        config: Rule configuration
     """
     try:
         # For now, verbose stats only work with plain text files
         # For other file types, use regular processing
         if verbose and file_path.suffix.lower() == '.txt':
             content = file_path.read_text(encoding='utf-8')
-            result, stats = polish_text_verbose(content)
+            result, stats = polish_text_verbose(content, config=config)
         else:
             result = process_file(file_path)
             stats = None
@@ -216,6 +251,7 @@ def process_directory(
     dry_run: bool,
     extensions: tuple[str, ...],
     verbose: bool,
+    config,
 ):
     """Process all files in a directory.
 
@@ -226,6 +262,7 @@ def process_directory(
         dry_run: Preview changes without writing
         extensions: File extensions to process
         verbose: Show statistics about changes
+        config: Rule configuration
     """
     if not inplace and not dry_run:
         click.echo("Error: Directory processing requires --inplace or --dry-run", err=True)
@@ -254,7 +291,7 @@ def process_directory(
             # For verbose mode with plain text files, show stats
             if verbose and file_path.suffix.lower() == '.txt':
                 content = file_path.read_text(encoding='utf-8')
-                result, stats = polish_text_verbose(content)
+                result, stats = polish_text_verbose(content, config=config)
             else:
                 result = process_file(file_path)
                 stats = None
@@ -282,6 +319,61 @@ def process_directory(
 
     if not dry_run:
         click.echo(f"\nProcessed {success_count} file(s), {error_count} error(s)")
+
+
+def _show_effective_config(rule_config, config_path: Path | None) -> None:
+    """Display the effective configuration being used.
+
+    Args:
+        rule_config: The loaded rule configuration
+        config_path: Path to custom config (if provided via --config)
+    """
+    click.secho("Effective Configuration:", bold=True)
+    click.echo()
+
+    # Show config source
+    click.echo("Config Source:")
+    if config_path:
+        click.echo(f"  Custom: {config_path}")
+    else:
+        # Check which default config is being used
+        project_config = Path.cwd() / "textformat.toml"
+        user_config = Path.home() / ".config" / "textformat.toml"
+
+        if project_config.exists():
+            click.echo(f"  Project: {project_config}")
+        if user_config.exists():
+            click.echo(f"  User: {user_config}")
+        if not project_config.exists() and not user_config.exists():
+            click.echo("  Defaults (no config file)")
+    click.echo()
+
+    # Show built-in rules
+    click.secho("Built-in Rules:", bold=True)
+    for rule_name, enabled in sorted(rule_config.rules.items()):
+        status = "✓" if enabled else "✗"
+        color = "green" if enabled else "red"
+        click.secho(f"  {status} {rule_name}: {enabled}", fg=color)
+    click.echo()
+
+    # Show custom rules
+    if rule_config.custom_rules:
+        click.secho("Custom Rules:", bold=True)
+        for i, rule in enumerate(rule_config.custom_rules):
+            name = rule.get('name', f'rule_{i}')
+            pattern = rule.get('pattern', '')
+            replacement = rule.get('replacement', '')
+            description = rule.get('description', '')
+
+            click.echo(f"  [{i+1}] {name}")
+            click.echo(f"      pattern: {pattern}")
+            click.echo(f"      replacement: {replacement}")
+            if description:
+                click.echo(f"      description: {description}")
+        click.echo()
+    else:
+        click.echo("Custom Rules: None")
+        click.echo()
 
 
 if __name__ == '__main__':

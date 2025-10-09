@@ -1,0 +1,104 @@
+# textformat Configuration File
+#
+# Copy this file to one of the following locations:
+#   1. Project root: ./textformat.toml (highest priority)
+#   2. User config:  ~/.config/textformat.toml
+#
+# Or use a custom path with: textformat --config /path/to/config.toml
+#
+# Note: Configuration requires Python 3.11+
+#       On Python <3.11, all rules are enabled by default
+
+# ============================================================================
+# Built-in Rules
+# ============================================================================
+[rules]
+# Universal rules (all languages)
+ellipsis_normalization = true  # Convert ". . ." to "..."
+
+# Chinese-specific rules
+dash_conversion = true          # Convert "--" to "——"
+emdash_spacing = true          # Fix spacing around ——
+quote_spacing = true           # Add spaces around ""
+cjk_english_spacing = true     # Add spaces between Chinese & English/numbers
+space_collapsing = true        # Collapse multiple spaces to single space
+
+# ============================================================================
+# Custom Regex Rules
+# ============================================================================
+# Define your own text transformation rules using regex patterns.
+# Custom rules run AFTER all built-in rules.
+#
+# Each rule requires:
+#   - name: Rule identifier (shown in verbose output)
+#   - pattern: Regular expression pattern to match
+#   - replacement: Replacement string (can use \1, \2 for capture groups)
+#   - description: (optional) Human-readable description
+
+# Example: Replace ASCII arrows with Unicode arrows
+[[custom_rules]]
+name = "unicode_arrows"
+pattern = '->'
+replacement = '→'
+description = "Use Unicode right arrow"
+
+[[custom_rules]]
+name = "unicode_left_arrow"
+pattern = '<-'
+replacement = '←'
+description = "Use Unicode left arrow"
+
+# Example: Use proper multiplication sign
+[[custom_rules]]
+name = "multiplication_sign"
+pattern = '(\d+)\s*x\s*(\d+)'
+replacement = '\1×\2'
+description = "Replace 'x' with multiplication sign between numbers"
+
+# Example: Convert fractions to Unicode
+[[custom_rules]]
+name = "fraction_half"
+pattern = '\b1/2\b'
+replacement = '½'
+description = "Convert 1/2 to Unicode fraction"
+
+[[custom_rules]]
+name = "fraction_quarter"
+pattern = '\b1/4\b'
+replacement = '¼'
+description = "Convert 1/4 to Unicode fraction"
+
+# Example: Smart quotes for English text
+# (Note: This example assumes straight quotes in source)
+# [[custom_rules]]
+# name = "smart_quotes_open"
+# pattern = '\b"(\w+)'
+# replacement = '"\1'
+# description = "Opening smart quotes"
+
+# Example: Degrees symbol
+[[custom_rules]]
+name = "degrees_celsius"
+pattern = '(\d+)\s*C\b'
+replacement = '\1°C'
+description = "Add degree symbol to Celsius temperatures"
+
+# ============================================================================
+# Usage Examples
+# ============================================================================
+#
+# Test configuration:
+#   textformat "test text" --config textformat.toml.example --verbose
+#
+# Disable a specific rule:
+#   Set the rule to `false` in the [rules] section
+#
+# Add custom rule:
+#   Add a new [[custom_rules]] section with pattern/replacement
+#
+# Priority order:
+#   1. Built-in rules (if enabled) in order:
+#      ellipsis → dash → emdash spacing → quotes → CJK spacing → space collapsing
+#   2. Custom rules in the order defined in this file
+#
+# ============================================================================

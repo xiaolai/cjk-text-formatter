@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .config import RuleConfig
 
 # Regular expressions
 CHINESE_RE = re.compile(r"[\u4e00-\u9fff]")
@@ -19,6 +23,7 @@ class PolishStats:
     quote_spacing_fixed: int = 0
     cjk_english_spacing_added: int = 0
     spaces_collapsed: int = 0
+    custom_rules_applied: dict[str, int] = field(default_factory=dict)
 
     def has_changes(self) -> bool:
         """Check if any changes were made."""
@@ -29,6 +34,7 @@ class PolishStats:
             self.quote_spacing_fixed,
             self.cjk_english_spacing_added,
             self.spaces_collapsed,
+            bool(self.custom_rules_applied),
         ])
 
     def format_summary(self) -> str:
@@ -46,6 +52,11 @@ class PolishStats:
             changes.append(f"{self.cjk_english_spacing_added} CJK-English spacing added")
         if self.spaces_collapsed:
             changes.append(f"{self.spaces_collapsed} spaces collapsed")
+
+        # Add custom rule stats
+        for rule_name, count in self.custom_rules_applied.items():
+            if count > 0:
+                changes.append(f"{count} {rule_name} applied")
 
         if not changes:
             return "No changes made"
@@ -186,7 +197,7 @@ def _space_between(text: str) -> str:
     return text
 
 
-def polish_text(text: str) -> str:
+def polish_text(text: str, config: RuleConfig | None = None) -> str:
     """Polish text with typography rules.
 
     Universal rules (all languages):
@@ -201,89 +212,152 @@ def polish_text(text: str) -> str:
 
     Args:
         text: Text to polish
+        config: Optional configuration for rule toggling
 
     Returns:
         Polished text with typography rules applied
     """
+    # If no config, create default (all rules enabled)
+    if config is None:
+        from .config import RuleConfig
+        config = RuleConfig()
+
     # Universal normalization (applies to all languages)
-    text = _normalize_ellipsis(text)
+    if config.is_enabled('ellipsis_normalization'):
+        text = _normalize_ellipsis(text)
 
     # Chinese-specific polishing
-    if not contains_chinese(text):
-        return text.strip()
+    if contains_chinese(text):
+        if config.is_enabled('dash_conversion'):
+            text = _replace_dash(text)
+        if config.is_enabled('emdash_spacing'):
+            text = _fix_emdash_spacing(text)
+        if config.is_enabled('quote_spacing'):
+            text = _fix_quotes(text)
+        if config.is_enabled('cjk_english_spacing'):
+            text = _space_between(text)
 
-    text = _replace_dash(text)
-    text = _fix_emdash_spacing(text)
-    text = _fix_quotes(text)
-    text = _space_between(text)
+        # Collapse multiple spaces to single space
+        if config.is_enabled('space_collapsing'):
+            text = re.sub(r"\s{2,}", " ", text)
 
-    # Collapse multiple spaces to single space
-    text = re.sub(r"\s{2,}", " ", text)
+    # Apply custom regex rules
+    text = _apply_custom_rules(text, config.custom_rules)
 
     return text.strip()
 
 
-def polish_text_verbose(text: str) -> tuple[str, PolishStats]:
+def _apply_custom_rules(text: str, custom_rules: list) -> str:
+    """Apply custom regex rules to text.
+
+    Args:
+        text: Text to process
+        custom_rules: List of custom rule dicts with 'pattern' and 'replacement'
+
+    Returns:
+        Text with custom rules applied
+    """
+    for rule in custom_rules:
+        try:
+            pattern = rule['pattern']
+            replacement = rule['replacement']
+            text = re.sub(pattern, replacement, text)
+        except (KeyError, re.error):
+            # Skip invalid rules
+            continue
+
+    return text
+
+
+def polish_text_verbose(text: str, config: RuleConfig | None = None) -> tuple[str, PolishStats]:
     """Polish text with typography rules and return statistics.
 
     Args:
         text: Text to polish
+        config: Optional configuration for rule toggling
 
     Returns:
         Tuple of (polished text, statistics)
     """
+    # If no config, create default (all rules enabled)
+    if config is None:
+        from .config import RuleConfig
+        config = RuleConfig()
+
     stats = PolishStats()
     original = text
 
     # Universal normalization - count ellipsis patterns
-    ellipsis_pattern = re.compile(r"\s*\.\s+\.\s+\.(?:\s+\.)*")
-    stats.ellipsis_normalized = len(ellipsis_pattern.findall(text))
-    text = _normalize_ellipsis(text)
+    if config.is_enabled('ellipsis_normalization'):
+        ellipsis_pattern = re.compile(r"\s*\.\s+\.\s+\.(?:\s+\.)*")
+        stats.ellipsis_normalized = len(ellipsis_pattern.findall(text))
+        text = _normalize_ellipsis(text)
 
     # Chinese-specific polishing
-    if not contains_chinese(text):
-        return text.strip(), stats
+    if contains_chinese(text):
+        # Count dash conversions (-- to ——)
+        if config.is_enabled('dash_conversion'):
+            dash_pattern = re.compile(r"([^\s])--([^\s])")
+            stats.dash_converted = len(dash_pattern.findall(text))
+            text = _replace_dash(text)
 
-    # Count dash conversions (-- to ——)
-    dash_pattern = re.compile(r"([^\s])--([^\s])")
-    stats.dash_converted = len(dash_pattern.findall(text))
-    text = _replace_dash(text)
+        # Count em-dash spacing fixes
+        if config.is_enabled('emdash_spacing'):
+            emdash_spacing_pattern = re.compile(r"([^\s])\s*——\s*([^\s])")
+            matches = emdash_spacing_pattern.findall(text)
+            # Only count if spacing is actually wrong
+            temp_text = text
+            for before, after in matches:
+                left_space = "" if before in ("）", "》") else " "
+                right_space = "" if after in ("（", "《") else " "
+                correct = f"{before}{left_space}——{right_space}{after}"
+                # Check if current version doesn't match correct version
+                current_pattern = re.compile(re.escape(before) + r"\s*——\s*" + re.escape(after))
+                if current_pattern.search(temp_text):
+                    current_match = current_pattern.search(temp_text).group()
+                    if current_match != correct:
+                        stats.emdash_spacing_fixed += 1
+            text = _fix_emdash_spacing(text)
 
-    # Count em-dash spacing fixes
-    emdash_spacing_pattern = re.compile(r"([^\s])\s*——\s*([^\s])")
-    matches = emdash_spacing_pattern.findall(text)
-    # Only count if spacing is actually wrong
-    temp_text = text
-    for before, after in matches:
-        left_space = "" if before in ("）", "》") else " "
-        right_space = "" if after in ("（", "《") else " "
-        correct = f"{before}{left_space}——{right_space}{after}"
-        # Check if current version doesn't match correct version
-        current_pattern = re.compile(re.escape(before) + r"\s*——\s*" + re.escape(after))
-        if current_pattern.search(temp_text):
-            current_match = current_pattern.search(temp_text).group()
-            if current_match != correct:
-                stats.emdash_spacing_fixed += 1
-    text = _fix_emdash_spacing(text)
+        # Count quote spacing fixes
+        if config.is_enabled('quote_spacing'):
+            opening_quote = '\u201c'
+            closing_quote = '\u201d'
+            quote_before = len(re.findall(f'([A-Za-z0-9\u4e00-\u9fff]){opening_quote}', text))
+            quote_after = len(re.findall(f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff])', text))
+            stats.quote_spacing_fixed = quote_before + quote_after
+            text = _fix_quotes(text)
 
-    # Count quote spacing fixes
-    opening_quote = '\u201c'
-    closing_quote = '\u201d'
-    quote_before = len(re.findall(f'([A-Za-z0-9\u4e00-\u9fff]){opening_quote}', text))
-    quote_after = len(re.findall(f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff])', text))
-    stats.quote_spacing_fixed = quote_before + quote_after
-    text = _fix_quotes(text)
+        # Count CJK-English spacing additions
+        if config.is_enabled('cjk_english_spacing'):
+            num_pattern = r"[A-Za-z0-9]+(?:[%‰℃℉]|°[CcFf]?)?"
+            cjk_before_eng = len(re.findall(f"([\u4e00-\u9fff])({num_pattern})", text))
+            eng_before_cjk = len(re.findall(f"({num_pattern})([\u4e00-\u9fff])", text))
+            stats.cjk_english_spacing_added = cjk_before_eng + eng_before_cjk
+            text = _space_between(text)
 
-    # Count CJK-English spacing additions
-    num_pattern = r"[A-Za-z0-9]+(?:[%‰℃℉]|°[CcFf]?)?"
-    cjk_before_eng = len(re.findall(f"([\u4e00-\u9fff])({num_pattern})", text))
-    eng_before_cjk = len(re.findall(f"({num_pattern})([\u4e00-\u9fff])", text))
-    stats.cjk_english_spacing_added = cjk_before_eng + eng_before_cjk
-    text = _space_between(text)
+        # Count multiple spaces
+        if config.is_enabled('space_collapsing'):
+            multi_space_pattern = re.compile(r"\s{2,}")
+            stats.spaces_collapsed = len(multi_space_pattern.findall(text))
+            text = re.sub(r"\s{2,}", " ", text)
 
-    # Count multiple spaces
-    multi_space_pattern = re.compile(r"\s{2,}")
-    stats.spaces_collapsed = len(multi_space_pattern.findall(text))
-    text = re.sub(r"\s{2,}", " ", text)
+    # Apply custom regex rules and track counts
+    for rule in config.custom_rules:
+        try:
+            pattern = rule['pattern']
+            replacement = rule['replacement']
+            rule_name = rule.get('name', 'custom')
+
+            # Count matches before applying
+            matches = re.findall(pattern, text)
+            count = len(matches)
+
+            if count > 0:
+                stats.custom_rules_applied[rule_name] = count
+                text = re.sub(pattern, replacement, text)
+        except (KeyError, re.error):
+            # Skip invalid rules
+            continue
 
     return text.strip(), stats
