@@ -190,19 +190,19 @@ consecutive_punctuation_limit = 0
 [[custom_rules]]
 name = "unicode_arrows"
 pattern = '->'
-replacement = '→'
+replacement = ' → '
 description = "Use Unicode right arrow"
 
 [[custom_rules]]
 name = "unicode_left_arrow"
 pattern = '<-'
-replacement = '←'
+replacement = ' ← '
 description = "Use Unicode left arrow"
 
 [[custom_rules]]
 name = "bidirectional_arrow"
 pattern = '<->'
-replacement = '↔'
+replacement = ' ↔ '
 description = "Convert <-> to bidirectional arrow"
 
 # Example: Multiplication sign
