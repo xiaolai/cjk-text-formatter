@@ -189,19 +189,19 @@ consecutive_punctuation_limit = 0
 # Example: Unicode arrows
 [[custom_rules]]
 name = "unicode_arrows"
-pattern = '->'
+pattern = '\s*->\s*'
 replacement = ' → '
 description = "Use Unicode right arrow"
 
 [[custom_rules]]
 name = "unicode_left_arrow"
-pattern = '<-'
+pattern = '\s*<-\s*'
 replacement = ' ← '
 description = "Use Unicode left arrow"
 
 [[custom_rules]]
 name = "bidirectional_arrow"
-pattern = '<->'
+pattern = '\s*<->\s*'
 replacement = ' ↔ '
 description = "Convert <-> to bidirectional arrow"
 
