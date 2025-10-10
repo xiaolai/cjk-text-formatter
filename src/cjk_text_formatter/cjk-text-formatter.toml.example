@@ -1,0 +1,263 @@
+# CJK Text Formatter Configuration File
+#
+# Copy this file to one of the following locations:
+#   1. Project root: ./cjk-text-formatter.toml (highest priority)
+#   2. User config:  ~/.config/cjk-text-formatter.toml
+#
+# Or use a custom path with: ctf --config /path/to/config.toml
+#
+# Note: Configuration requires Python 3.11+
+#       On Python <3.11, all rules are enabled by default
+
+# ============================================================================
+# Built-in Rules - Enable/Disable with true/false
+# ============================================================================
+[rules]
+
+# ----------------------------------------------------------------------------
+# Universal Rules (All Languages)
+# ----------------------------------------------------------------------------
+ellipsis_normalization = true
+# Convert spaced ellipsis to standard form
+# Examples:
+#   ". . ."    → "..."
+#   ". . . ."  → "..."
+#   "wait . . . more" → "wait... more"
+
+# ----------------------------------------------------------------------------
+# Quote Spacing (Smart CJK Punctuation Handling)
+# ----------------------------------------------------------------------------
+quote_spacing = true
+# Add spaces around Chinese double quotes "" with smart behavior
+# NO SPACE added when adjacent to CJK punctuation: ，。！？；：、《》「」『』【】（）〈〉——
+# Examples:
+#   文本"引用"文本       → 文本 "引用" 文本  (add spaces)
+#   文本，"引用"。       → 文本，"引用"。    (NO space - punctuation has built-in spacing)
+#   《书名》"引用"（注） → 《书名》"引用"（注） (NO space - brackets have visual spacing)
+
+single_quote_spacing = true
+# Same smart rules as double quotes, but for single quotes ''
+# Examples:
+#   文本'引用'文本       → 文本 '引用' 文本
+#   文本，'引用'。       → 文本，'引用'。
+
+# ----------------------------------------------------------------------------
+# Em-Dash Rules
+# ----------------------------------------------------------------------------
+dash_conversion = true
+# Convert double dash to Chinese em-dash
+# Examples:
+#   text--more     → text —— more
+#   《书名》--作者  → 《书名》—— 作者
+
+emdash_spacing = true
+# Fix spacing around existing em-dash ——
+# Smart spacing: no space adjacent to 《》（）
+# Examples:
+#   text——more     → text —— more
+#   《书名》——作者  → 《书名》—— 作者
+#   作者——《书名》  → 作者 ——《书名》
+
+# ----------------------------------------------------------------------------
+# Full-Width Normalization (Context-Aware)
+# ----------------------------------------------------------------------------
+fullwidth_punctuation = true
+# Normalize punctuation width based on context
+# Converts to full-width when surrounded by CJK characters
+# Punctuation affected: , . ! ? ; :
+# Examples:
+#   文本,还有.内容      → 文本，还有。内容  (CJK context → full-width)
+#   English, text.      → English, text.   (English context → keep half-width)
+
+fullwidth_parentheses = true
+# Convert half-width () to full-width （） in CJK context
+# Examples:
+#   (注释)内容          → （注释）内容
+#   English (note)     → English (note)  (keep half-width in English)
+
+fullwidth_brackets = false
+# Convert half-width [] to full-width 【】 in CJK context
+# OFF by default - only enable if you prefer this style
+# Examples:
+#   [标记]文本          → 【标记】文本
+#   English [note]     → English [note]
+
+fullwidth_alphanumeric = true
+# Convert full-width numbers and letters to half-width
+# Affects: ０-９ (numbers), Ａ-Ｚ (uppercase), ａ-ｚ (lowercase)
+# Examples:
+#   １２３ＡＢＣ          → 123ABC
+#   全角１２３文本      → 全角 123 文本
+
+# ----------------------------------------------------------------------------
+# Spacing Rules
+# ----------------------------------------------------------------------------
+cjk_english_spacing = true
+# Add spaces between Chinese characters and English letters/numbers
+# Supports units: %, °C, °F, ‰, ℃, ℉
+# Examples:
+#   中文English混合    → 中文 English 混合
+#   数字123内容        → 数字 123 内容
+#   温度25°C很高       → 温度 25°C 很高
+#   占比5%左右         → 占比 5% 左右
+
+currency_spacing = true
+# Remove space between currency symbols and amounts
+# Supports: $, ¥, €, £, ₹, USD, CNY, EUR, GBP
+# Examples:
+#   $ 100              → $100
+#   ¥ 500              → ¥500
+#   EUR 200            → EUR200
+
+slash_spacing = true
+# Remove spaces around slashes (but preserve URLs)
+# Examples:
+#   A / B              → A/B
+#   either / or        → either/or
+#   https://example.com → https://example.com (preserved)
+
+space_collapsing = true
+# Collapse multiple consecutive spaces to single space
+# PRESERVES indentation (leading spaces after newlines)
+# Examples:
+#   文本    多空格      → 文本 多空格
+#   行一\n  行二缩进    → 行一\n  行二缩进 (indentation preserved)
+
+# ----------------------------------------------------------------------------
+# Punctuation Cleanup
+# ----------------------------------------------------------------------------
+consecutive_punctuation_limit = 0
+# Limit consecutive punctuation marks
+# Values:
+#   0 = unlimited (no changes)
+#   1 = reduce to single mark
+#   2 = limit to double marks
+# Affects: ！ ？ 。
+# Examples (when limit=1):
+#   很好！！！          → 很好！
+#   真的吗？？？        → 真的吗？
+# Examples (when limit=2):
+#   很好！！！          → 很好！！
+#   真的吗？？？        → 真的吗？？
+
+# ============================================================================
+# Quote Spacing Detailed Explanation
+# ============================================================================
+# The `quote_spacing` and `single_quote_spacing` rules use smart context-aware
+# spacing to avoid double-spacing with CJK punctuation.
+#
+# CJK Punctuation Excluded from Quote Spacing:
+#   • Terminal: ，。！？；：、
+#   • Book marks: 《》
+#   • Corner brackets: 「」『』
+#   • Lenticular: 【】
+#   • Parentheses: （）
+#   • Angle: 〈〉
+#   • Em-dash: ——
+#
+# Why? These punctuation marks have built-in visual spacing (they're full-width),
+# so adding extra spaces creates awkward double-spacing that looks wrong.
+#
+# Correct behavior examples:
+#   ✓ 文本，"引用"。结束     (no extra space - punctuation provides spacing)
+#   ✓ 《书名》"引用"（注）   (no extra space - brackets provide spacing)
+#   ✓ 前文——"引用"——后文     (no extra space - em-dash provides spacing)
+#
+# Incorrect (what we avoid):
+#   ✗ 文本， "引用" 。结束   (double spacing - too much gap)
+#   ✗ 《书名》 "引用" （注） (double spacing - looks broken)
+#
+# Spaces ARE added for alphanumeric/Chinese:
+#   ✓ 文本"引用"文本   → 文本 "引用" 文本
+#   ✓ English"中文"    → English "中文"
+#   ✓ 123"内容"        → 123 "内容"
+
+# ============================================================================
+# Custom Regex Rules
+# ============================================================================
+# Define your own text transformation rules using regex patterns.
+# Custom rules run AFTER all built-in rules.
+#
+# Each rule requires:
+#   - name: Rule identifier (shown in verbose output)
+#   - pattern: Regular expression pattern to match
+#   - replacement: Replacement string (can use \1, \2 for capture groups)
+#   - description: (optional) Human-readable description
+
+# Example: Unicode arrows
+[[custom_rules]]
+name = "unicode_arrows"
+pattern = '->'
+replacement = '→'
+description = "Use Unicode right arrow"
+
+[[custom_rules]]
+name = "unicode_left_arrow"
+pattern = '<-'
+replacement = '←'
+description = "Use Unicode left arrow"
+
+# Example: Multiplication sign
+[[custom_rules]]
+name = "multiplication_sign"
+pattern = '(\d+)\s*x\s*(\d+)'
+replacement = '\1×\2'
+description = "Replace 'x' with multiplication sign between numbers"
+
+# Example: Unicode fractions
+[[custom_rules]]
+name = "fraction_half"
+pattern = '\b1/2\b'
+replacement = '½'
+description = "Convert 1/2 to Unicode fraction"
+
+[[custom_rules]]
+name = "fraction_quarter"
+pattern = '\b1/4\b'
+replacement = '¼'
+description = "Convert 1/4 to Unicode fraction"
+
+# ============================================================================
+# Rule Execution Order
+# ============================================================================
+# Built-in rules run in this order:
+#   1. Ellipsis normalization (universal)
+#   2. Full-width alphanumeric normalization
+#   3. Full-width punctuation normalization
+#   4. Full-width parentheses/brackets normalization
+#   5. Dash conversion (-- to ——)
+#   6. Em-dash spacing
+#   7. Double quote spacing
+#   8. Single quote spacing
+#   9. CJK-English spacing
+#  10. Currency spacing
+#  11. Slash spacing
+#  12. Consecutive punctuation cleanup
+#  13. Space collapsing
+#  14. Trailing space removal
+#  15. Excessive newline collapsing
+#  16. Custom rules (in order defined above)
+#
+# This order ensures:
+#   - Normalization happens first
+#   - Spacing rules apply after punctuation is normalized
+#   - Cleanup rules run last
+#   - Custom rules can further refine the output
+
+# ============================================================================
+# Usage Tips
+# ============================================================================
+# Test your configuration:
+#   ctf "test text 测试" --config cjk-text-formatter.toml --verbose
+#
+# Validate configuration file:
+#   ctf --validate-config cjk-text-formatter.toml
+#
+# Show effective configuration:
+#   ctf --show-config
+#
+# Disable a specific rule:
+#   Set the rule to `false` in the [rules] section
+#
+# Temporarily override config:
+#   Use --config /path/to/other-config.toml

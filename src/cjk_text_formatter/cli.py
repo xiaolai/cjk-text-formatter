@@ -12,6 +12,13 @@ from .config import load_config, validate_config as validate_config_file, DEFAUL
 from .polish import polish_text, polish_text_verbose
 from .processors import process_file, find_files
 
+# Import for accessing package data files
+try:
+    from importlib.resources import files
+except ImportError:
+    # Python 3.8 fallback
+    from importlib_resources import files
+
 
 @click.command()
 @click.version_option(version=__version__, prog_name='ctf')
@@ -473,21 +480,20 @@ def _init_config_file(config_global: bool, force: bool) -> None:
         click.echo("Use --force to overwrite", err=True)
         sys.exit(1)
 
-    # Find the example config file (in package directory)
-    package_dir = Path(__file__).parent.parent.parent
-    example_file = package_dir / "cjk-text-formatter.toml.example"
-
-    if not example_file.exists():
-        click.secho(f"Error: Example config file not found at {example_file}", fg='red', err=True)
+    # Get example config content from package data
+    try:
+        package_files = files('cjk_text_formatter')
+        example_content = (package_files / 'cjk-text-formatter.toml.example').read_text(encoding='utf-8')
+    except Exception as e:
+        click.secho(f"Error reading example config from package: {e}", fg='red', err=True)
         sys.exit(1)
 
     # Create parent directory if it doesn't exist (for global config)
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    # Copy example file to target
+    # Write example content to target
     try:
-        import shutil
-        shutil.copy2(example_file, target)
+        target.write_text(example_content, encoding='utf-8')
         click.secho(f"✓ Created {location_name}: {target}", fg='green')
         click.echo()
         click.echo("Next steps:")
@@ -547,19 +553,13 @@ def _list_available_rules() -> None:
 
 def _show_config_example() -> None:
     """Print the example config file to stdout."""
-    # Find the example config file (in package directory)
-    package_dir = Path(__file__).parent.parent.parent
-    example_file = package_dir / "cjk-text-formatter.toml.example"
-
-    if not example_file.exists():
-        click.secho(f"Error: Example config file not found at {example_file}", fg='red', err=True)
-        sys.exit(1)
-
+    # Get example config content from package data
     try:
-        content = example_file.read_text(encoding='utf-8')
+        package_files = files('cjk_text_formatter')
+        content = (package_files / 'cjk-text-formatter.toml.example').read_text(encoding='utf-8')
         click.echo(content, nl=False)
     except Exception as e:
-        click.secho(f"Error reading example config: {e}", fg='red', err=True)
+        click.secho(f"Error reading example config from package: {e}", fg='red', err=True)
         sys.exit(1)
 
 
