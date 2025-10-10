@@ -160,13 +160,21 @@ Configuration is loaded with the following priority (highest to lowest):
 ### Quick Start
 
 ```bash
-# Copy example config to your project
+# Option 1: Use --init-config (recommended)
+ctf --init-config                    # Create config in current directory
+ctf --init-config --global           # Create config in ~/.config/
+
+# Option 2: Manually copy example file
 cp cjk-text-formatter.toml.example cjk-text-formatter.toml
 
-# Or to user config
-cp cjk-text-formatter.toml.example ~/.config/cjk-text-formatter.toml
+# View example without creating file
+ctf --show-config-example
 
-# Edit and customize rules
+# List all available rules
+ctf --list-rules
+
+# Check where config files are located
+ctf --where
 ```
 
 ### Configuration Format
@@ -254,6 +262,32 @@ pattern = '"([^"]+)"'
 replacement = '"\1"'
 ```
 
+### Config Management Commands
+
+```bash
+# Create config file from template
+ctf --init-config                    # Creates ./cjk-text-formatter.toml
+ctf --init-config --global           # Creates ~/.config/cjk-text-formatter.toml
+ctf --init-config --force            # Overwrite existing file
+
+# List all available rules with descriptions
+ctf --list-rules
+
+# View example config (useful for piping)
+ctf --show-config-example
+ctf --show-config-example > my-config.toml
+
+# Check config file locations
+ctf --where                          # Show search paths and active config
+
+# Validate config file syntax and rules
+ctf --validate-config cjk-text-formatter.toml
+
+# Show active configuration
+ctf --show-config                    # Shows effective config from all sources
+ctf --show-config --config custom.toml  # With custom config
+```
+
 ### Usage with Config
 
 ```bash
@@ -263,11 +297,15 @@ ctf input.txt
 # Use specific config file
 ctf input.txt --config my-rules.toml
 
+# Temporarily disable rules (no config file needed)
+ctf input.txt --disable dash_conversion
+ctf input.txt --disable quote_spacing --disable emdash_spacing
+
+# Temporarily enable rules
+ctf input.txt --enable fullwidth_brackets
+
 # Show what changed (verbose mode)
 ctf input.txt --verbose
-
-# Disable a rule temporarily (edit config file)
-# Set: dash_conversion = false
 ```
 
 ### Validating Config Files
@@ -430,6 +468,8 @@ To add a new typography rule:
 
 ## Options
 
+### Processing Options
+
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--output PATH` | `-o` | Output file path |
@@ -438,10 +478,29 @@ To add a new typography rule:
 | `--dry-run` | `-n` | Preview changes without writing |
 | `--extensions EXT` | `-e` | File extensions to process (e.g., `-e .txt -e .md`) |
 | `--verbose` | `-v` | Show summary of changes made |
-| `--config PATH` | `-c` | Path to custom config file |
-| `--validate-config PATH` | | Validate config file and exit |
+
+### Configuration Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--config PATH` | `-c` | Use custom config file |
+| `--disable RULE` | | Temporarily disable a specific rule (repeatable) |
+| `--enable RULE` | | Temporarily enable a specific rule (repeatable) |
+| `--init-config` | | Create example config file and exit |
+| `--global` | | Use with `--init-config` to create global config |
+| `--force` | | Use with `--init-config` to overwrite existing |
+| `--list-rules` | | List all available rules with descriptions and exit |
+| `--show-config-example` | | Print example config to stdout and exit |
+| `--where` | | Show config file locations and exit |
+| `--validate-config PATH` | | Validate config file syntax and rules, then exit |
 | `--show-config` | | Show effective configuration and exit |
+
+### Other Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
 | `--version` | | Show version and exit |
+| `--help` | | Show help message and exit |
 
 ## Examples
 

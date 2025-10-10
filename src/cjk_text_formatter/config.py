@@ -38,6 +38,25 @@ DEFAULT_RULES = {
 }
 
 
+# Rule descriptions for documentation and --list-rules
+RULE_DESCRIPTIONS = {
+    'ellipsis_normalization': 'Convert spaced ellipsis to standard form (. . . → ...)',
+    'dash_conversion': 'Convert double dash to Chinese em-dash (-- → ——)',
+    'emdash_spacing': 'Fix spacing around em-dash (text——more → text —— more)',
+    'quote_spacing': 'Smart spacing around double quotes "" (avoids CJK punctuation)',
+    'single_quote_spacing': 'Smart spacing around single quotes \'\' (avoids CJK punctuation)',
+    'cjk_english_spacing': 'Add spaces between CJK and English/numbers (中文English → 中文 English)',
+    'space_collapsing': 'Collapse multiple spaces to single space (preserves indentation)',
+    'fullwidth_punctuation': 'Normalize punctuation width based on context (,. → ，。 in CJK)',
+    'fullwidth_parentheses': 'Convert () to （） in CJK context',
+    'fullwidth_brackets': 'Convert [] to 【】 in CJK context',
+    'fullwidth_alphanumeric': 'Convert full-width numbers/letters to half-width (１２３ → 123)',
+    'consecutive_punctuation_limit': 'Limit consecutive punctuation (0=unlimited, 1=single, 2=double)',
+    'currency_spacing': 'Remove space between currency symbols and amounts ($ 100 → $100)',
+    'slash_spacing': 'Remove spaces around slashes (A / B → A/B, preserves URLs)',
+}
+
+
 @dataclass
 class RuleConfig:
     """Configuration for formatting rules."""

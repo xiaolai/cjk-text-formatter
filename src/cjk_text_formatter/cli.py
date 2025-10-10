@@ -8,7 +8,7 @@ from pathlib import Path
 import click
 
 from . import __version__
-from .config import load_config, validate_config as validate_config_file
+from .config import load_config, validate_config as validate_config_file, DEFAULT_RULES, RULE_DESCRIPTIONS
 from .polish import polish_text, polish_text_verbose
 from .processors import process_file, find_files
 
@@ -61,6 +61,50 @@ from .processors import process_file, find_files
     is_flag=True,
     help='Show effective configuration and exit',
 )
+@click.option(
+    '--init-config',
+    is_flag=True,
+    help='Create example config file and exit',
+)
+@click.option(
+    '--global',
+    'config_global',
+    is_flag=True,
+    help='Use with --init-config to create global config (~/.config/)',
+)
+@click.option(
+    '--force',
+    is_flag=True,
+    help='Use with --init-config to overwrite existing config',
+)
+@click.option(
+    '--list-rules',
+    is_flag=True,
+    help='List all available formatting rules and exit',
+)
+@click.option(
+    '--show-config-example',
+    is_flag=True,
+    help='Print example config to stdout and exit',
+)
+@click.option(
+    '--where',
+    'where_config',
+    is_flag=True,
+    help='Show config file locations and exit',
+)
+@click.option(
+    '--disable',
+    'disable_rules',
+    multiple=True,
+    help='Disable specific rule(s) (can be used multiple times)',
+)
+@click.option(
+    '--enable',
+    'enable_rules',
+    multiple=True,
+    help='Enable specific rule(s) (can be used multiple times)',
+)
 def main(
     input: str | None,
     output: Path | None,
@@ -72,6 +116,14 @@ def main(
     config: Path | None,
     validate_config: Path | None,
     show_config: bool,
+    init_config: bool,
+    config_global: bool,
+    force: bool,
+    list_rules: bool,
+    show_config_example: bool,
+    where_config: bool,
+    disable_rules: tuple[str, ...],
+    enable_rules: tuple[str, ...],
 ):
     """Format text with Chinese typography rules.
 
@@ -121,8 +173,32 @@ def main(
         click.echo(result.format_report())
         sys.exit(0 if result.is_valid else 1)
 
+    # Handle --init-config command (create config file and exit)
+    if init_config:
+        _init_config_file(config_global, force)
+        sys.exit(0)
+
+    # Handle --list-rules command (list rules and exit)
+    if list_rules:
+        _list_available_rules()
+        sys.exit(0)
+
+    # Handle --show-config-example command (print example and exit)
+    if show_config_example:
+        _show_config_example()
+        sys.exit(0)
+
+    # Handle --where command (show config locations and exit)
+    if where_config:
+        _show_config_locations(config)
+        sys.exit(0)
+
     # Load configuration
     rule_config = load_config(config_path=config)
+
+    # Apply CLI rule overrides (--disable/--enable)
+    if disable_rules or enable_rules:
+        _apply_rule_overrides(rule_config, disable_rules, enable_rules)
 
     # Handle --show-config command (show config and exit)
     if show_config:
@@ -374,6 +450,205 @@ def _show_effective_config(rule_config, config_path: Path | None) -> None:
     else:
         click.echo("Custom Rules: None")
         click.echo()
+
+
+def _init_config_file(config_global: bool, force: bool) -> None:
+    """Create a config file from the example template.
+
+    Args:
+        config_global: If True, create global config in ~/.config/
+        force: If True, overwrite existing config file
+    """
+    # Determine target path
+    if config_global:
+        target = Path.home() / ".config" / "cjk-text-formatter.toml"
+        location_name = "global config"
+    else:
+        target = Path.cwd() / "cjk-text-formatter.toml"
+        location_name = "project config"
+
+    # Check if file exists
+    if target.exists() and not force:
+        click.secho(f"Error: {location_name} already exists at {target}", fg='red', err=True)
+        click.echo("Use --force to overwrite", err=True)
+        sys.exit(1)
+
+    # Find the example config file (in package directory)
+    package_dir = Path(__file__).parent.parent.parent
+    example_file = package_dir / "cjk-text-formatter.toml.example"
+
+    if not example_file.exists():
+        click.secho(f"Error: Example config file not found at {example_file}", fg='red', err=True)
+        sys.exit(1)
+
+    # Create parent directory if it doesn't exist (for global config)
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    # Copy example file to target
+    try:
+        import shutil
+        shutil.copy2(example_file, target)
+        click.secho(f"✓ Created {location_name}: {target}", fg='green')
+        click.echo()
+        click.echo("Next steps:")
+        click.echo(f"  1. Edit the config: {target}")
+        click.echo("  2. Validate it: ctf --validate-config " + str(target))
+        click.echo("  3. Test it: ctf --show-config")
+    except Exception as e:
+        click.secho(f"Error creating config file: {e}", fg='red', err=True)
+        sys.exit(1)
+
+
+def _list_available_rules() -> None:
+    """List all available formatting rules with descriptions."""
+    click.secho("Available Formatting Rules:", bold=True)
+    click.echo()
+
+    # Group rules by category
+    categories = {
+        'Universal': ['ellipsis_normalization'],
+        'Normalization': [
+            'fullwidth_alphanumeric',
+            'fullwidth_punctuation',
+            'fullwidth_parentheses',
+            'fullwidth_brackets',
+        ],
+        'Em-Dash': ['dash_conversion', 'emdash_spacing'],
+        'Quotes': ['quote_spacing', 'single_quote_spacing'],
+        'Spacing': ['cjk_english_spacing', 'currency_spacing', 'slash_spacing', 'space_collapsing'],
+        'Cleanup': ['consecutive_punctuation_limit'],
+    }
+
+    for category, rule_names in categories.items():
+        click.secho(f"{category}:", bold=True, fg='cyan')
+        for rule_name in rule_names:
+            if rule_name in DEFAULT_RULES:
+                default_value = DEFAULT_RULES[rule_name]
+                description = RULE_DESCRIPTIONS.get(rule_name, 'No description available')
+
+                # Format status
+                if isinstance(default_value, bool):
+                    status = "✓ ON " if default_value else "✗ OFF"
+                    color = "green" if default_value else "red"
+                else:
+                    status = f"  {default_value}"
+                    color = "yellow"
+
+                click.echo(f"  {click.style(status, fg=color)} {click.style(rule_name, bold=True)}")
+                click.echo(f"      {description}")
+        click.echo()
+
+    click.echo("Usage:")
+    click.echo("  • Enable/disable in config file: [rules] section")
+    click.echo("  • Temporarily disable: ctf --disable rule_name")
+    click.echo("  • Temporarily enable: ctf --enable rule_name")
+    click.echo("  • View current config: ctf --show-config")
+
+
+def _show_config_example() -> None:
+    """Print the example config file to stdout."""
+    # Find the example config file (in package directory)
+    package_dir = Path(__file__).parent.parent.parent
+    example_file = package_dir / "cjk-text-formatter.toml.example"
+
+    if not example_file.exists():
+        click.secho(f"Error: Example config file not found at {example_file}", fg='red', err=True)
+        sys.exit(1)
+
+    try:
+        content = example_file.read_text(encoding='utf-8')
+        click.echo(content, nl=False)
+    except Exception as e:
+        click.secho(f"Error reading example config: {e}", fg='red', err=True)
+        sys.exit(1)
+
+
+def _show_config_locations(config_path: Path | None) -> None:
+    """Show config file search paths and which ones exist.
+
+    Args:
+        config_path: Custom config path (if provided via --config)
+    """
+    click.secho("Config File Locations (priority order):", bold=True)
+    click.echo()
+
+    # Check each location
+    locations = []
+
+    # 1. Custom path (--config)
+    if config_path:
+        exists = config_path.exists()
+        status = click.style("[EXISTS] ✓", fg='green') if exists else click.style("[NOT FOUND]", fg='red')
+        locations.append((1, f"Custom (--config): {config_path}", status, exists))
+    else:
+        locations.append((1, "Custom (--config): Not specified", click.style("[NOT USED]", fg='yellow'), False))
+
+    # 2. Project config
+    project_config = Path.cwd() / "cjk-text-formatter.toml"
+    exists = project_config.exists()
+    status = click.style("[EXISTS] ✓", fg='green') if exists else click.style("[NOT FOUND]", fg='yellow')
+    locations.append((2, f"Project: {project_config}", status, exists))
+
+    # 3. User config
+    user_config = Path.home() / ".config" / "cjk-text-formatter.toml"
+    exists = user_config.exists()
+    status = click.style("[EXISTS] ✓", fg='green') if exists else click.style("[NOT FOUND]", fg='yellow')
+    locations.append((3, f"User: {user_config}", status, exists))
+
+    # 4. Defaults
+    locations.append((4, "Defaults: Built-in rules", click.style("[ALWAYS AVAILABLE]", fg='green'), True))
+
+    # Print locations
+    for priority, location, status, _ in locations:
+        click.echo(f"  {priority}. {location}")
+        click.echo(f"     {status}")
+        click.echo()
+
+    # Determine which config is active
+    active_config = None
+    if config_path and config_path.exists():
+        active_config = f"Custom: {config_path}"
+    elif project_config.exists():
+        active_config = f"Project: {project_config}"
+    elif user_config.exists():
+        active_config = f"User: {user_config}"
+    else:
+        active_config = "Defaults (no config file)"
+
+    click.secho("Active Configuration:", bold=True)
+    click.echo(f"  {active_config}")
+    click.echo()
+    click.echo("Tip: Use 'ctf --show-config' to see effective settings")
+
+
+def _apply_rule_overrides(
+    rule_config,
+    disable_rules: tuple[str, ...],
+    enable_rules: tuple[str, ...],
+) -> None:
+    """Apply CLI rule overrides to the loaded configuration.
+
+    Args:
+        rule_config: Loaded RuleConfig instance
+        disable_rules: Tuple of rule names to disable
+        enable_rules: Tuple of rule names to enable
+    """
+    # Validate rule names
+    all_rules = set(DEFAULT_RULES.keys())
+
+    for rule in disable_rules:
+        if rule not in all_rules:
+            click.secho(f"Error: Unknown rule '{rule}'", fg='red', err=True)
+            click.echo(f"Available rules: {', '.join(sorted(all_rules))}", err=True)
+            sys.exit(1)
+        rule_config.rules[rule] = False
+
+    for rule in enable_rules:
+        if rule not in all_rules:
+            click.secho(f"Error: Unknown rule '{rule}'", fg='red', err=True)
+            click.echo(f"Available rules: {', '.join(sorted(all_rules))}", err=True)
+            sys.exit(1)
+        rule_config.rules[rule] = True
 
 
 if __name__ == '__main__':
