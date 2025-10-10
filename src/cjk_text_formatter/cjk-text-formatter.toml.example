@@ -199,6 +199,12 @@ pattern = '<-'
 replacement = '←'
 description = "Use Unicode left arrow"
 
+[[custom_rules]]
+name = "bidirectional_arrow"
+pattern = '<->'
+replacement = '↔'
+description = "Convert <-> to bidirectional arrow"
+
 # Example: Multiplication sign
 [[custom_rules]]
 name = "multiplication_sign"
@@ -254,13 +260,6 @@ name = "fraction_four_fifths"
 pattern = '\b4/5\b'
 replacement = '⅘'
 description = "Convert 4/5 to Unicode fraction"
-
-# Example: Bidirectional arrow
-[[custom_rules]]
-name = "bidirectional_arrow"
-pattern = '<->'
-replacement = '↔'
-description = "Convert <-> to bidirectional arrow"
 
 # ============================================================================
 # Rule Execution Order
