@@ -36,11 +36,6 @@ A Python CLI tool for polishing text with Chinese typography rules. Automaticall
 
 ## Installation
 
-> **⚠️ BREAKING CHANGE in v0.3.0**: The package has been renamed from `textformater` to `cjk_text_formatter` to fix a spelling error. If you're upgrading from v0.2.x:
-> - Update imports: `from textformater` → `from cjk_text_formatter`
-> - CLI command (`ctf`) remains unchanged
-> - Config file name unchanged: `cjk-text-formatter.toml`
-
 ### Requirements
 
 - Python 3.8 or higher
