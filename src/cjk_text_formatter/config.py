@@ -41,7 +41,7 @@ DEFAULT_RULES = {
 # Rule descriptions for documentation and --list-rules
 RULE_DESCRIPTIONS = {
     'ellipsis_normalization': 'Convert spaced ellipsis to standard form (. . . → ...)',
-    'dash_conversion': 'Convert double dash to Chinese em-dash (-- → ——)',
+    'dash_conversion': 'Convert dashes to Chinese em-dash between CJK text (2+ dashes → ——)',
     'emdash_spacing': 'Fix spacing around em-dash (text——more → text —— more)',
     'quote_spacing': 'Smart spacing around double quotes "" (avoids CJK punctuation)',
     'single_quote_spacing': 'Smart spacing around single quotes \'\' (avoids CJK punctuation)',

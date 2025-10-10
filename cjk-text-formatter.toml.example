@@ -28,18 +28,18 @@ ellipsis_normalization = true
 # Quote Spacing (Smart CJK Punctuation Handling)
 # ----------------------------------------------------------------------------
 quote_spacing = true
-# Add spaces around Chinese double quotes "" with smart behavior
-# NO SPACE added when adjacent to CJK punctuation: ，。！？；：、《》「」『』【】（）〈〉——
+# Add spaces around Chinese double quotes “” with smart behavior
+# NO SPACE added when adjacent to CJK punctuation: ，。！？；：、《》「」『』【】（）〈〉
 # Examples:
-#   文本"引用"文本       → 文本 "引用" 文本  (add spaces)
-#   文本，"引用"。       → 文本，"引用"。    (NO space - punctuation has built-in spacing)
-#   《书名》"引用"（注） → 《书名》"引用"（注） (NO space - brackets have visual spacing)
+#   文本“引用”文本       → 文本 “引用” 文本  (add spaces)
+#   文本，“引用”。       → 文本，“引用”。    (NO space - punctuation has built-in spacing)
+#   《书名》“引用”（注） → 《书名》“引用”（注） (NO space - brackets have visual spacing)
 
 single_quote_spacing = true
-# Same smart rules as double quotes, but for single quotes ''
+# Same smart rules as double quotes, but for single quotes ‘’
 # Examples:
-#   文本'引用'文本       → 文本 '引用' 文本
-#   文本，'引用'。       → 文本，'引用'。
+#   文本‘引用’文本       → 文本 ‘引用’ 文本
+#   文本，‘引用’。       → 文本，‘引用’。
 
 # ----------------------------------------------------------------------------
 # Em-Dash Rules
@@ -153,15 +153,17 @@ consecutive_punctuation_limit = 0
 #   • Lenticular: 【】
 #   • Parentheses: （）
 #   • Angle: 〈〉
-#   • Em-dash: ——
 #
 # Why? These punctuation marks have built-in visual spacing (they're full-width),
 # so adding extra spaces creates awkward double-spacing that looks wrong.
 #
+# Note: Em-dash (——) is NOT excluded - spaces ARE added between em-dash and quotes
+# because curly quotes "" and '' lack built-in visual spacing.
+#
 # Correct behavior examples:
 #   ✓ 文本，"引用"。结束     (no extra space - punctuation provides spacing)
 #   ✓ 《书名》"引用"（注）   (no extra space - brackets provide spacing)
-#   ✓ 前文——"引用"——后文     (no extra space - em-dash provides spacing)
+#   ✓ 前文——"引用"——后文     → 前文 —— "引用" —— 后文  (space needed - curly quotes lack visual spacing)
 #
 # Incorrect (what we avoid):
 #   ✗ 文本， "引用" 。结束   (double spacing - too much gap)
@@ -212,10 +214,53 @@ replacement = '½'
 description = "Convert 1/2 to Unicode fraction"
 
 [[custom_rules]]
+name = "fraction_third"
+pattern = '\b1/3\b'
+replacement = '⅓'
+description = "Convert 1/3 to Unicode fraction"
+
+[[custom_rules]]
+name = "fraction_two_thirds"
+pattern = '\b2/3\b'
+replacement = '⅔'
+description = "Convert 2/3 to Unicode fraction"
+
+[[custom_rules]]
 name = "fraction_quarter"
 pattern = '\b1/4\b'
 replacement = '¼'
 description = "Convert 1/4 to Unicode fraction"
+
+[[custom_rules]]
+name = "fraction_three_quarters"
+pattern = '\b3/4\b'
+replacement = '¾'
+description = "Convert 3/4 to Unicode fraction"
+
+[[custom_rules]]
+name = "fraction_two_fifths"
+pattern = '\b2/5\b'
+replacement = '⅖'
+description = "Convert 2/5 to Unicode fraction"
+
+[[custom_rules]]
+name = "fraction_three_fifths"
+pattern = '\b3/5\b'
+replacement = '⅗'
+description = "Convert 3/5 to Unicode fraction"
+
+[[custom_rules]]
+name = "fraction_four_fifths"
+pattern = '\b4/5\b'
+replacement = '⅘'
+description = "Convert 4/5 to Unicode fraction"
+
+# Example: Bidirectional arrow
+[[custom_rules]]
+name = "bidirectional_arrow"
+pattern = '<->'
+replacement = '↔'
+description = "Convert <-> to bidirectional arrow"
 
 # ============================================================================
 # Rule Execution Order

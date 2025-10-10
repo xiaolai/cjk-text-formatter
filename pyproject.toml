@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cjk-text-formatter"
-version = "1.0.1"
+version = "1.0.2"
 description = "A CLI tool for polishing text with Chinese typography rules"
 readme = "README.md"
 requires-python = ">=3.8"

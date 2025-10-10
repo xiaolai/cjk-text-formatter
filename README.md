@@ -10,9 +10,10 @@ A Python CLI tool for polishing text with Chinese typography rules. Automaticall
 ### Chinese-Specific Rules
 
 **Quote & Punctuation:**
-- **Double quote spacing (`""`)**: Smart spacing that excludes CJK punctuation with built-in visual spacing
-- **Single quote spacing (`''`)**: Same smart rules as double quotes
-- **Em-dash spacing**: Converts `--` to `——` with context-aware spacing
+- **Double quote spacing (`“”`)**: Smart spacing that excludes CJK punctuation with built-in visual spacing
+- **Single quote spacing (`‘’`)**: Same smart rules as double quotes
+- **Em-dash conversion**: Converts `--` (or more dashes) to `——` between CJK characters only
+- **Em-dash spacing**: Fixes spacing around existing `——` with context-aware rules
 - **Full-width punctuation**: Normalizes `,`→`，` `.`→`。` in CJK context
 - **Full-width parentheses/brackets**: `(text)` → `（text）` in CJK context
 
@@ -212,9 +213,9 @@ description = "Use proper multiplication sign"
 | **Universal Rules** | | |
 | `ellipsis_normalization` | ✅ | Convert `. . .` to `...` |
 | **Quote & Em-dash** | | |
-| `quote_spacing` | ✅ | Add spaces around `""` with smart CJK handling |
-| `single_quote_spacing` | ✅ | Add spaces around `''` with smart CJK handling |
-| `dash_conversion` | ✅ | Convert `--` to `——` |
+| `quote_spacing` | ✅ | Add spaces around `“”` with smart CJK handling |
+| `single_quote_spacing` | ✅ | Add spaces around `‘’` with smart CJK handling |
+| `dash_conversion` | ✅ | Convert `--` (2+ dashes) to `——` between CJK text only |
 | `emdash_spacing` | ✅ | Fix spacing around `——` |
 | **Normalization** | | |
 | `fullwidth_punctuation` | ✅ | Normalize `,` `.` `!` `?` `;` `:` width |
@@ -361,15 +362,27 @@ ctf --show-config --config my-rules.toml
 
 ## Typography Rules
 
-### Em-Dash Spacing
+### Em-Dash Conversion & Spacing
+
+**Dash Conversion** (only between CJK characters):
+
+| Before | After | Notes |
+|--------|-------|-------|
+| `中文--更多` | `中文 —— 更多` | ✅ Between CJK: converts and adds spaces |
+| `中文---更多` | `中文 —— 更多` | ✅ Triple dash (2+): also converts |
+| `中文 -- 更多` | `中文 —— 更多` | ✅ With spaces: also converts |
+| `text--more` | `text--more` | ❌ English only: NOT converted |
+| `---` | `---` | ❌ Markdown horizontal rule: NOT converted |
+
+**Em-Dash Spacing** (existing `——` characters):
 
 | Before | After | Rule |
 |--------|-------|------|
-| `text--more` | `text —— more` | Regular text: spaces on both sides |
-| `《书名》--作者` | `《书名》—— 作者` | After `》`: no space before `——`, space after |
-| `作者--《书名》` | `作者 ——《书名》` | Before `《`: space before `——`, no space after |
-| `（注释）--内容` | `（注释）—— 内容` | After `）`: no space before `——`, space after |
-| `内容--（注释）` | `内容 ——（注释）` | Before `（`: space before `——`, no space after |
+| `文本——内容` | `文本 —— 内容` | Regular CJK text: spaces on both sides |
+| `《书名》——作者` | `《书名》—— 作者` | After `》`: no space before `——`, space after |
+| `作者——《书名》` | `作者 ——《书名》` | Before `《`: space before `——`, no space after |
+| `（注释）——内容` | `（注释）—— 内容` | After `）`: no space before `——`, space after |
+| `内容——（注释）` | `内容 ——（注释）` | Before `（`: space before `——`, no space after |
 
 ### CJK-English Spacing
 
@@ -388,14 +401,15 @@ The quote spacing rule intelligently avoids adding spaces when quotes are adjace
 | `文本"引用"文本` | `文本 "引用" 文本` | Regular text: add spaces for readability |
 | `文本，"引用"。` | `文本，"引用"。` | Punctuation ，。: NO space (already has visual spacing) |
 | `《书名》"引用"（注）` | `《书名》"引用"（注）` | Brackets 《》（）: NO space (already has visual spacing) |
-| `前文——"引用"——后文` | `前文——"引用"——后文` | Em-dash ——: NO space (already has visual spacing) |
+| `前文——"引用"——后文` | `前文 —— "引用" —— 后文` | Em-dash ——: ADD space (curly quotes need spacing) |
 | `English"中文"123` | `English "中文" 123` | Alphanumeric: add spaces for readability |
 
-**CJK punctuation excluded from spacing:**
+**CJK punctuation excluded from quote spacing:**
 - Terminal punctuation: ，。！？；：、
 - Book title marks & corner brackets: 《》「」『』
 - Brackets: 【】（）〈〉
-- Em-dash: ——
+
+**Note:** Em-dash (——) is NOT excluded - spaces are added between em-dash and quotes because curly quotes lack built-in visual spacing.
 
 ### Ellipsis Normalization
 

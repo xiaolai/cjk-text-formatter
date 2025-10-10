@@ -121,19 +121,21 @@ description = "Use multiplication sign"
         config_file = tmp_path / "cjk-text-formatter.toml"
         config_file.write_text(config_content)
 
+        # Patch both cwd and home to isolate test from real config files
         with patch('pathlib.Path.cwd', return_value=tmp_path):
-            config = load_config()
+            with patch('pathlib.Path.home', return_value=tmp_path / "fake_home"):
+                config = load_config()
 
-            assert len(config.custom_rules) == 2
+                assert len(config.custom_rules) == 2
 
-            # First custom rule
-            assert config.custom_rules[0]['name'] == 'arrow_unicode'
-            assert config.custom_rules[0]['pattern'] == '->'
-            assert config.custom_rules[0]['replacement'] == '→'
+                # First custom rule
+                assert config.custom_rules[0]['name'] == 'arrow_unicode'
+                assert config.custom_rules[0]['pattern'] == '->'
+                assert config.custom_rules[0]['replacement'] == '→'
 
-            # Second custom rule
-            assert config.custom_rules[1]['name'] == 'multiply_sign'
-            assert config.custom_rules[1]['pattern'] == r'(\d+)\s*x\s*(\d+)'
+                # Second custom rule
+                assert config.custom_rules[1]['name'] == 'multiply_sign'
+                assert config.custom_rules[1]['pattern'] == r'(\d+)\s*x\s*(\d+)'
 
 
 class TestPython310Fallback:

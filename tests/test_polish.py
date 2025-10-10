@@ -7,6 +7,7 @@ from cjk_text_formatter.polish import (
     _replace_dash,
     _fix_emdash_spacing,
     _fix_quotes,
+    _fix_single_quotes,
     _space_between,
     _normalize_ellipsis,
 )
@@ -45,30 +46,66 @@ class TestNormalizeEllipsis:
 
 
 class TestReplaceDash:
-    """Test -- to —— conversion with proper spacing."""
+    """Test -- to —— conversion with proper spacing (CJK context only)."""
 
-    def test_regular_text_gets_spaces(self):
-        assert _replace_dash("text--more") == "text —— more"
+    def test_double_dash_between_chinese(self):
+        """Double dash between Chinese characters should convert."""
         assert _replace_dash("文本--内容") == "文本 —— 内容"
+        assert _replace_dash("中文--更多") == "中文 —— 更多"
+
+    def test_triple_dash_between_chinese(self):
+        """Triple dash (and more) between Chinese characters should convert."""
+        assert _replace_dash("中文---更多") == "中文 —— 更多"
+        assert _replace_dash("中文----更多") == "中文 —— 更多"
+        assert _replace_dash("文本-----内容") == "文本 —— 内容"
+
+    def test_dash_with_spaces_between_chinese(self):
+        """Dashes with spaces around them between Chinese should convert."""
+        assert _replace_dash("中文 -- 更多") == "中文 —— 更多"
+        assert _replace_dash("中文  --  更多") == "中文 —— 更多"
+        assert _replace_dash("文本 --- 内容") == "文本 —— 内容"
 
     def test_closing_angle_quote_no_left_space(self):
+        """Closing angle quote 》 should have no space before ——."""
         assert _replace_dash("《书名》--作者") == "《书名》—— 作者"
-        assert _replace_dash("text》--more") == "text》—— more"
+        assert _replace_dash("《书名》---作者") == "《书名》—— 作者"
 
     def test_opening_angle_quote_no_right_space(self):
+        """Opening angle quote 《 should have no space after ——."""
         assert _replace_dash("作者--《书名》") == "作者 ——《书名》"
-        assert _replace_dash("text--《more") == "text ——《more"
+        assert _replace_dash("作者---《书名》") == "作者 ——《书名》"
 
     def test_closing_paren_no_left_space(self):
+        """Closing paren ） should have no space before ——."""
         assert _replace_dash("（注释）--内容") == "（注释）—— 内容"
-        assert _replace_dash("text）--more") == "text）—— more"
+        assert _replace_dash("（注释）---内容") == "（注释）—— 内容"
 
     def test_opening_paren_no_right_space(self):
+        """Opening paren （ should have no space after ——."""
         assert _replace_dash("内容--（注释）") == "内容 ——（注释）"
-        assert _replace_dash("text--（more") == "text ——（more"
+        assert _replace_dash("内容---（注释）") == "内容 ——（注释）"
 
     def test_both_quotes(self):
+        """Both sides with quotes should have no spaces."""
         assert _replace_dash("《书名》--《续集》") == "《书名》——《续集》"
+        assert _replace_dash("《书名》---《续集》") == "《书名》——《续集》"
+
+    def test_dash_between_english_not_converted(self):
+        """Dashes between English text should NOT convert."""
+        assert _replace_dash("text--more") == "text--more"
+        assert _replace_dash("hello---world") == "hello---world"
+        assert _replace_dash("foo----bar") == "foo----bar"
+
+    def test_markdown_horizontal_rule_not_converted(self):
+        """Markdown horizontal rules (---) should NOT convert."""
+        assert _replace_dash("---") == "---"
+        assert _replace_dash("----") == "----"
+        assert _replace_dash("-----") == "-----"
+
+    def test_mixed_english_chinese_not_converted(self):
+        """Dashes between English and Chinese should NOT convert."""
+        assert _replace_dash("text--中文") == "text--中文"
+        assert _replace_dash("中文--text") == "中文--text"
 
 
 class TestFixEmdashSpacing:
@@ -160,11 +197,22 @@ class TestFixQuotes:
         assert _fix_quotes('文本\u201c引用\u201d〈标记〉') == '文本 \u201c引用\u201d〈标记〉'
 
     def test_quote_spacing_with_emdash(self):
-        """No space between quotes and em-dash ——."""
-        assert _fix_quotes('前文——\u201c引用\u201d后文') == '前文——\u201c引用\u201d 后文'
-        assert _fix_quotes('前文\u201c引用\u201d——后文') == '前文 \u201c引用\u201d——后文'
+        """Spaces ARE needed between quotes and em-dash (curly quotes lack visual spacing)."""
+        assert _fix_quotes('前文——\u201c引用\u201d后文') == '前文—— \u201c引用\u201d 后文'
+        assert _fix_quotes('前文\u201c引用\u201d——后文') == '前文 \u201c引用\u201d ——后文'
         # Both sides with em-dash
-        assert _fix_quotes('前——\u201c引用\u201d——后') == '前——\u201c引用\u201d——后'
+        assert _fix_quotes('前——\u201c引用\u201d——后') == '前—— \u201c引用\u201d ——后'
+
+
+class TestFixSingleQuotes:
+    """Test spacing around Chinese single quotation marks ''."""
+
+    def test_single_quote_spacing_with_emdash(self):
+        """Spaces ARE needed between single quotes and em-dash (curly quotes lack visual spacing)."""
+        assert _fix_single_quotes('前文——\u2018引用\u2019后文') == '前文—— \u2018引用\u2019 后文'
+        assert _fix_single_quotes('前文\u2018引用\u2019——后文') == '前文 \u2018引用\u2019 ——后文'
+        # Both sides with em-dash
+        assert _fix_single_quotes('前——\u2018引用\u2019——后') == '前—— \u2018引用\u2019 ——后'
 
 
 class TestSpaceBetween:
@@ -323,12 +371,12 @@ class TestPolishText:
         assert result == text  # Should be unchanged
 
     def test_mixed_complex_text(self):
-        """Complex real-world example."""
-        text = "作者李华（1980--2020）——著名作家，写了《人生》--一部长篇小说。该书在2018年出版。"
+        """Complex real-world example with new dash conversion rules."""
+        text = "作者——李华（生于1980年）。他写了《人生》--一部长篇小说。该书在2018年出版。"
         result = polish_text(text)
 
         # Check key transformations
-        assert "1980 —— 2020" in result  # Regular em-dash gets spaces
-        assert "）—— 著名" in result  # Closing paren, no left space
-        assert "《人生》—— 一部" in result  # Closing quote, no left space
+        assert "作者 —— 李华" in result  # Em-dash spacing with regular text
+        assert "。他" in result or "。 他" in result  # Period handling
+        assert "《人生》—— 一部" in result  # Dash converts between CJK (closing quote, no left space)
         assert "2018 年" in result  # Number-Chinese spacing

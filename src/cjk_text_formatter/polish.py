@@ -18,10 +18,14 @@ CJK_CLOSING_BRACKETS = '》」』】）〉'
 CJK_OPENING_BRACKETS = '《「『【（〈'
 CJK_EM_DASH = '——'
 
+# CJK character range for dash conversion (includes Han characters and CJK punctuation)
+CJK_CHARS_PATTERN = r'[\u4e00-\u9fff《》「」『』【】（）〈〉，。！？；：、]'
+
 # Pre-compiled regex patterns for performance
 ELLIPSIS_PATTERN = re.compile(r"\s*\.\s+\.\s+\.(?:\s+\.)*")
 ELLIPSIS_SPACING_PATTERN = re.compile(r"\.\.\.\s*(?=\S)")
-DASH_PATTERN = re.compile(r"([^\s])--([^\s])")
+# Match 2+ dashes between CJK characters (with optional whitespace)
+DASH_PATTERN = re.compile(rf'({CJK_CHARS_PATTERN})\s*-{{2,}}\s*({CJK_CHARS_PATTERN})')
 EMDASH_SPACING_PATTERN = re.compile(r"([^\s])\s*——\s*([^\s])")
 FULLWIDTH_PARENS_PATTERN = re.compile(r'\(([\u4e00-\u9fff][^()]*)\)')
 FULLWIDTH_BRACKETS_PATTERN = re.compile(r'\[([\u4e00-\u9fff][^\[\]]*)\]')
@@ -116,9 +120,13 @@ def _normalize_ellipsis(text: str) -> str:
 
 
 def _replace_dash(text: str) -> str:
-    """Convert -- to —— with proper spacing.
+    """Convert dashes (2+) to —— when between CJK characters.
+
+    Only converts dashes between Chinese characters or CJK punctuation.
+    Supports flexible dash count (---, ----, etc.) and optional spacing.
 
     Rules:
+    - Only converts when both sides are CJK characters/punctuation
     - No space between closing quotes/parens (》）) and ——
     - No space between —— and opening quotes/parens (《（)
     - Regular text gets spaces on both sides
@@ -127,7 +135,7 @@ def _replace_dash(text: str) -> str:
         text: Text to process
 
     Returns:
-        Text with -- converted to —— with proper spacing
+        Text with dashes converted to —— with proper spacing
     """
     def repl(match: re.Match[str]) -> str:
         before = match.group(1)
@@ -213,24 +221,18 @@ def _fix_quote_spacing(text: str, opening_quote: str, closing_quote: str) -> str
             return f'{closing_quote}{after}'
         return f'{closing_quote} {after}'
 
-    # Handle em-dash before opening quote (need special handling for 2-char sequence)
-    # Replace ——" with ——" (no space)
-    text = re.sub(f'{CJK_EM_DASH}{opening_quote}', f'{CJK_EM_DASH}{opening_quote}', text)
-
-    # Handle em-dash after closing quote
-    # Replace "—— with "—— (no space)
-    text = re.sub(f'{closing_quote}{CJK_EM_DASH}', f'{closing_quote}{CJK_EM_DASH}', text)
-
-    # Add space before quote if preceded by alphanumeric/Chinese (but not CJK punct)
+    # Add space before quote if preceded by alphanumeric/Chinese/em-dash (but not CJK punct)
+    # Include em-dash as a special case (2-char sequence)
     text = re.sub(
-        f'([A-Za-z0-9\u4e00-\u9fff{CJK_CLOSING_BRACKETS}{CJK_TERMINAL_PUNCTUATION}]){opening_quote}',
+        f'([A-Za-z0-9\u4e00-\u9fff{CJK_CLOSING_BRACKETS}{CJK_TERMINAL_PUNCTUATION}]|{CJK_EM_DASH}){opening_quote}',
         repl_before,
         text
     )
 
-    # Add space after quote if followed by alphanumeric/Chinese (but not CJK punct)
+    # Add space after quote if followed by alphanumeric/Chinese/em-dash (but not CJK punct)
+    # Include em-dash as a special case (2-char sequence)
     text = re.sub(
-        f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff{CJK_OPENING_BRACKETS}{CJK_TERMINAL_PUNCTUATION}])',
+        f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff{CJK_OPENING_BRACKETS}{CJK_TERMINAL_PUNCTUATION}]|{CJK_EM_DASH})',
         repl_after,
         text
     )
@@ -239,7 +241,7 @@ def _fix_quote_spacing(text: str, opening_quote: str, closing_quote: str) -> str
 
 
 def _fix_quotes(text: str) -> str:
-    """Fix spacing around Chinese double quotation marks "" with smart CJK punctuation handling.
+    """Fix spacing around Chinese double quotation marks “” with smart CJK punctuation handling.
 
     Args:
         text: Text to process
@@ -253,7 +255,7 @@ def _fix_quotes(text: str) -> str:
 
 
 def _fix_single_quotes(text: str) -> str:
-    """Fix spacing around Chinese single quotation marks '' with smart CJK punctuation handling.
+    """Fix spacing around Chinese single quotation marks ‘’ with smart CJK punctuation handling.
 
     Same rules as double quotes, but for single quotes.
 
@@ -410,7 +412,7 @@ def polish_text(text: str, config: RuleConfig | None = None) -> str:
     Chinese-specific rules:
     - Convert -- to —— with proper spacing
     - Fix spacing around existing ——
-    - Fix spacing around Chinese quotes ""
+    - Fix spacing around Chinese quotes “”
     - Add spaces between Chinese and English/numbers
     - Collapse multiple consecutive spaces
 

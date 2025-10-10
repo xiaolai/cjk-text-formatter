@@ -206,12 +206,13 @@ class TestConfigNoneDefault:
 
     def test_polish_without_config_parameter(self):
         """Test calling polish_text() without config parameter works."""
-        text = "文本--English"
+        text = "文本--内容 and English"
         result = polish_text(text)  # No config parameter
 
         # Should use defaults (all rules enabled)
-        assert "——" in result
-        assert " " in result  # CJK spacing
+        assert "——" in result  # Dash converts between CJK
+        assert "文本 —— 内容" in result  # Check dash conversion
+        assert " English" in result  # CJK spacing with English
 
 
 class TestInvalidCustomRules:
