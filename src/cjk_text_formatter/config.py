@@ -18,12 +18,23 @@ except ImportError:
 
 # Default rule settings
 DEFAULT_RULES = {
+    # Original rules
     'ellipsis_normalization': True,
     'dash_conversion': True,
     'emdash_spacing': True,
     'quote_spacing': True,
+    'single_quote_spacing': True,
     'cjk_english_spacing': True,
     'space_collapsing': True,
+    # New normalization rules
+    'fullwidth_punctuation': True,
+    'fullwidth_parentheses': True,
+    'fullwidth_brackets': False,  # Optional, off by default
+    'fullwidth_alphanumeric': True,
+    # Cleanup rules
+    'consecutive_punctuation_limit': 0,  # 0=unlimited, 1=single, 2=double
+    'currency_spacing': True,
+    'slash_spacing': True,
 }
 
 
@@ -44,6 +55,18 @@ class RuleConfig:
             True if rule is enabled, False otherwise
         """
         return self.rules.get(rule_name, True)
+
+    def get_value(self, rule_name: str, default: Any = None) -> Any:
+        """Get the value of a rule (for non-boolean rules).
+
+        Args:
+            rule_name: Name of the rule
+            default: Default value if rule not found
+
+        Returns:
+            Rule value or default
+        """
+        return self.rules.get(rule_name, default)
 
 
 def load_config(config_path: Path | None = None) -> RuleConfig:

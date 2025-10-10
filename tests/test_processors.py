@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from textformater.processors import (
+from cjk_text_formatter.processors import (
     TextProcessor,
     MarkdownProcessor,
     HTMLProcessor,

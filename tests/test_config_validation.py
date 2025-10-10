@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from textformater.config import ValidationResult, validate_config
+from cjk_text_formatter.config import ValidationResult, validate_config
 
 
 class TestValidConfigValidation:

@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 # These imports will fail initially (TDD - RED phase)
-from textformater.config import load_config, RuleConfig
+from cjk_text_formatter.config import load_config, RuleConfig
 
 
 class TestConfigLoading:
@@ -141,7 +141,7 @@ class TestPython310Fallback:
 
     def test_fallback_when_tomllib_unavailable(self):
         """Test that config falls back to defaults when tomllib is not available."""
-        with patch('textformater.config.TOMLLIB_AVAILABLE', False):
+        with patch('cjk_text_formatter.config.TOMLLIB_AVAILABLE', False):
             config = load_config()
 
             # Should return default config (all rules enabled)
@@ -151,7 +151,7 @@ class TestPython310Fallback:
 
     def test_warning_message_python_310(self, capsys):
         """Test that a warning is shown when config is unavailable."""
-        with patch('textformater.config.TOMLLIB_AVAILABLE', False):
+        with patch('cjk_text_formatter.config.TOMLLIB_AVAILABLE', False):
             # Try to load config from a file that exists
             config = load_config()
 

@@ -232,12 +232,170 @@ def _fix_quotes(text: str) -> str:
     return text
 
 
+def _fix_single_quotes(text: str) -> str:
+    """Fix spacing around Chinese single quotation marks '' with smart CJK punctuation handling.
+
+    Same rules as double quotes, but for single quotes.
+    """
+    opening_quote = '\u2018'  # '
+    closing_quote = '\u2019'  # '
+
+    cjk_terminal = '，。！？；：、'
+    cjk_closing = '》」』】）〉'
+    cjk_opening = '《「『【（〈'
+    em_dash = '——'
+
+    no_space_before = cjk_closing + cjk_terminal
+    no_space_after = cjk_opening + cjk_terminal
+
+    def repl_before(match: re.Match[str]) -> str:
+        before = match.group(1)
+        if before in no_space_before:
+            return f'{before}{opening_quote}'
+        return f'{before} {opening_quote}'
+
+    def repl_after(match: re.Match[str]) -> str:
+        after = match.group(1)
+        if after in no_space_after:
+            return f'{closing_quote}{after}'
+        return f'{closing_quote} {after}'
+
+    text = re.sub(f'{em_dash}{opening_quote}', f'{em_dash}{opening_quote}', text)
+    text = re.sub(f'{closing_quote}{em_dash}', f'{closing_quote}{em_dash}', text)
+
+    text = re.sub(
+        f'([A-Za-z0-9\u4e00-\u9fff{cjk_closing}{cjk_terminal}]){opening_quote}',
+        repl_before,
+        text
+    )
+
+    text = re.sub(
+        f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff{cjk_opening}{cjk_terminal}])',
+        repl_after,
+        text
+    )
+
+    return text
+
+
+def _normalize_fullwidth_punctuation(text: str) -> str:
+    """Normalize punctuation width based on context.
+
+    Full-width in CJK context, half-width in English context.
+    """
+    # Half to full-width mapping
+    half_to_full = {
+        ',': '，',
+        '.': '。',
+        '!': '！',
+        '?': '？',
+        ';': '；',
+        ':': '：',
+    }
+
+    # Convert to full-width when surrounded by CJK
+    for half, full in half_to_full.items():
+        # CJK + half + CJK → CJK + full + CJK
+        text = re.sub(
+            f'([\u4e00-\u9fff]){re.escape(half)}([\u4e00-\u9fff])',
+            f'\\1{full}\\2',
+            text
+        )
+        # CJK + half + end → CJK + full
+        text = re.sub(
+            f'([\u4e00-\u9fff]){re.escape(half)}(?=\s|$)',
+            f'\\1{full}',
+            text
+        )
+
+    return text
+
+
+def _normalize_fullwidth_parentheses(text: str) -> str:
+    """Normalize parentheses width in CJK context."""
+    # Convert half-width to full-width when content is CJK
+    text = re.sub(r'\(([\u4e00-\u9fff][^()]*)\)', r'（\1）', text)
+    return text
+
+
+def _normalize_fullwidth_brackets(text: str) -> str:
+    """Normalize brackets width in CJK context."""
+    # Convert half-width to full-width when content is CJK
+    text = re.sub(r'\[([\u4e00-\u9fff][^\[\]]*)\]', r'【\1】', text)
+    return text
+
+
+def _cleanup_consecutive_punctuation(text: str, limit: int = 1) -> str:
+    """Reduce consecutive punctuation marks.
+
+    Args:
+        text: Text to process
+        limit: Maximum allowed repetitions (0=unlimited, 1=single, 2=double)
+
+    Returns:
+        Text with reduced consecutive punctuation
+    """
+    if limit == 0:
+        return text
+
+    # Punctuation to limit
+    marks = ['！', '？', '。']
+
+    for mark in marks:
+        if limit == 1:
+            text = re.sub(f'{re.escape(mark)}{{2,}}', mark, text)
+        elif limit == 2:
+            text = re.sub(f'{re.escape(mark)}{{3,}}', mark * 2, text)
+
+    return text
+
+
+def _normalize_fullwidth_alphanumeric(text: str) -> str:
+    """Convert full-width alphanumeric to half-width."""
+    result = []
+    for char in text:
+        code = ord(char)
+        # Full-width numbers (0-9): U+FF10-U+FF19
+        if 0xFF10 <= code <= 0xFF19:
+            result.append(chr(code - 0xFEE0))
+        # Full-width uppercase (A-Z): U+FF21-U+FF3A
+        elif 0xFF21 <= code <= 0xFF3A:
+            result.append(chr(code - 0xFEE0))
+        # Full-width lowercase (a-z): U+FF41-U+FF5A
+        elif 0xFF41 <= code <= 0xFF5A:
+            result.append(chr(code - 0xFEE0))
+        else:
+            result.append(char)
+    return ''.join(result)
+
+
+def _fix_currency_spacing(text: str) -> str:
+    """Remove spaces between currency symbols and amounts."""
+    # Common currency symbols
+    currencies = ['$', '¥', '€', '£', '₹', 'USD', 'CNY', 'EUR', 'GBP']
+
+    for currency in currencies:
+        # Remove space after currency symbol before number
+        text = re.sub(f'{re.escape(currency)}\\s+(\\d)', f'{currency}\\1', text)
+
+    return text
+
+
+def _fix_slash_spacing(text: str) -> str:
+    """Remove spaces around slashes."""
+    # Remove spaces around / but not in URLs
+    # Simple approach: if not preceded/followed by / (avoid //)
+    text = re.sub(r'(?<![/:])\s*/\s*(?!/)', '/', text)
+    return text
+
+
 def _space_between(text: str) -> str:
     """Add spaces between Chinese and English/numbers.
 
     Rules:
     - Add space between Chinese characters and English letters
     - Add space between Chinese characters and numbers (with units like %, °C, etc.)
+    - Add space between Chinese and currency symbols with amounts
 
     Args:
         text: Text to process
@@ -245,14 +403,16 @@ def _space_between(text: str) -> str:
     Returns:
         Text with spaces added between Chinese and alphanumerics
     """
-    # Pattern for numbers with optional measurement units
+    # Pattern for currency + numbers: $100, ¥500, EUR200, etc.
+    # Pattern for alphanumeric with optional measurement units
     # Supports: 5%, 25°C, 25°c, 45°, 3‰, 25℃, etc.
-    num_pattern = r"[A-Za-z0-9]+(?:[%‰℃℉]|°[CcFf]?)?"
+    # Also supports currency symbols: $, ¥, €, £, ₹
+    alphanum_pattern = r"(?:[$¥€£₹][ ]?)?[A-Za-z0-9]+(?:[%‰℃℉]|°[CcFf]?|[ ]?(?:USD|CNY|EUR|GBP|RMB))?"
 
-    # Chinese followed by alphanumeric (with optional unit)
-    text = re.sub(f"([\u4e00-\u9fff])({num_pattern})", r"\1 \2", text)
-    # Alphanumeric (with optional unit) followed by Chinese
-    text = re.sub(f"({num_pattern})([\u4e00-\u9fff])", r"\1 \2", text)
+    # Chinese followed by alphanumeric/currency (with optional unit)
+    text = re.sub(f"([\u4e00-\u9fff])({alphanum_pattern})", r"\1 \2", text)
+    # Alphanumeric/currency (with optional unit) followed by Chinese
+    text = re.sub(f"({alphanum_pattern})([\u4e00-\u9fff])", r"\1 \2", text)
     return text
 
 
@@ -287,18 +447,49 @@ def polish_text(text: str, config: RuleConfig | None = None) -> str:
 
     # Chinese-specific polishing
     if contains_chinese(text):
+        # Normalization rules (run first)
+        if config.is_enabled('fullwidth_alphanumeric'):
+            text = _normalize_fullwidth_alphanumeric(text)
+        if config.is_enabled('fullwidth_punctuation'):
+            text = _normalize_fullwidth_punctuation(text)
+        if config.is_enabled('fullwidth_parentheses'):
+            text = _normalize_fullwidth_parentheses(text)
+        if config.is_enabled('fullwidth_brackets'):
+            text = _normalize_fullwidth_brackets(text)
+
+        # Em-dash and quote rules
         if config.is_enabled('dash_conversion'):
             text = _replace_dash(text)
         if config.is_enabled('emdash_spacing'):
             text = _fix_emdash_spacing(text)
         if config.is_enabled('quote_spacing'):
             text = _fix_quotes(text)
+        if config.is_enabled('single_quote_spacing'):
+            text = _fix_single_quotes(text)
+
+        # Spacing rules
         if config.is_enabled('cjk_english_spacing'):
             text = _space_between(text)
+        if config.is_enabled('currency_spacing'):
+            text = _fix_currency_spacing(text)
+        if config.is_enabled('slash_spacing'):
+            text = _fix_slash_spacing(text)
 
-        # Collapse multiple spaces to single space
+        # Cleanup rules
+        punct_limit = config.get_value('consecutive_punctuation_limit', 0)
+        if punct_limit > 0:
+            text = _cleanup_consecutive_punctuation(text, punct_limit)
+
+        # Collapse multiple spaces to single space (preserve newlines and indentation)
         if config.is_enabled('space_collapsing'):
-            text = re.sub(r"\s{2,}", " ", text)
+            # Match non-space + 2+ spaces to preserve leading indentation after newlines
+            text = re.sub(r"(\S) {2,}", r"\1 ", text)
+
+        # Remove trailing spaces at end of lines
+        text = re.sub(r" +$", "", text, flags=re.MULTILINE)
+
+        # Collapse excessive newlines (3+) to max 2 (one blank line)
+        text = re.sub(r"\n{3,}", "\n\n", text)
 
     # Apply custom regex rules
     text = _apply_custom_rules(text, config.custom_rules)
@@ -395,11 +586,18 @@ def polish_text_verbose(text: str, config: RuleConfig | None = None) -> tuple[st
             stats.cjk_english_spacing_added = cjk_before_eng + eng_before_cjk
             text = _space_between(text)
 
-        # Count multiple spaces
+        # Count multiple spaces (preserve newlines and indentation)
         if config.is_enabled('space_collapsing'):
-            multi_space_pattern = re.compile(r"\s{2,}")
+            # Match non-space + 2+ spaces to preserve leading indentation
+            multi_space_pattern = re.compile(r"\S {2,}")
             stats.spaces_collapsed = len(multi_space_pattern.findall(text))
-            text = re.sub(r"\s{2,}", " ", text)
+            text = re.sub(r"(\S) {2,}", r"\1 ", text)
+
+        # Remove trailing spaces at end of lines
+        text = re.sub(r" +$", "", text, flags=re.MULTILINE)
+
+        # Collapse excessive newlines (3+) to max 2 (one blank line)
+        text = re.sub(r"\n{3,}", "\n\n", text)
 
     # Apply custom regex rules and track counts
     for rule in config.custom_rules:

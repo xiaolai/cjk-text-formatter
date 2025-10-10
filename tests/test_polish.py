@@ -1,7 +1,7 @@
 """Tests for text polishing functions."""
 
 import pytest
-from textformater.polish import (
+from cjk_text_formatter.polish import (
     polish_text,
     contains_chinese,
     _replace_dash,
@@ -247,6 +247,69 @@ class TestPolishText:
         text = "文本    太多    空格"
         result = polish_text(text)
         assert "  " not in result  # No double spaces
+
+    def test_space_collapsing_preserves_newlines(self):
+        """Space collapsing should preserve newlines (paragraph breaks)."""
+        # Double newline should be preserved (paragraph break)
+        text = "段落一。\n\n段落二。"
+        result = polish_text(text)
+        assert result == "段落一。\n\n段落二。"
+
+        # Single newline should be preserved
+        text = "第一行。\n第二行。"
+        result = polish_text(text)
+        assert result == "第一行。\n第二行。"
+
+    def test_trailing_spaces_removed(self):
+        """Trailing spaces at end of lines should be removed."""
+        # Trailing spaces before newline
+        text = "第一行有空格   \n第二行也有   \n第三行。"
+        result = polish_text(text)
+        assert result == "第一行有空格\n第二行也有\n第三行。"
+
+        # Trailing spaces before paragraph break
+        text = "段落一。  \n\n段落二。"
+        result = polish_text(text)
+        assert result == "段落一。\n\n段落二。"
+
+        # Only trailing spaces (whole line of spaces)
+        text = "文本\n    \n更多文本"
+        result = polish_text(text)
+        assert result == "文本\n\n更多文本"
+
+    def test_excessive_newlines_collapsed(self):
+        """Excessive newlines (3+) should be collapsed to 2 (one blank line)."""
+        # Triple newline → double newline
+        text = "章节一。\n\n\n章节二。"
+        result = polish_text(text)
+        assert result == "章节一。\n\n章节二。"
+
+        # Quadruple newline → double newline
+        text = "段落一。\n\n\n\n段落二。"
+        result = polish_text(text)
+        assert result == "段落一。\n\n段落二。"
+
+        # Five newlines → double newline
+        text = "部分一。\n\n\n\n\n部分二。"
+        result = polish_text(text)
+        assert result == "部分一。\n\n部分二。"
+
+    def test_space_collapsing_with_mixed_whitespace(self):
+        """Space collapsing should handle mixed spaces and newlines correctly."""
+        # Multiple spaces between words on same line
+        text = "文本    太多    空格"
+        result = polish_text(text)
+        assert result == "文本 太多 空格"
+
+        # Leading spaces after newline are preserved (indentation)
+        text = "一些文本\n  更多文本"
+        result = polish_text(text)
+        assert result == "一些文本\n  更多文本"
+
+        # Multiple levels of indentation preserved
+        text = "行一\n  行二缩进\n    行三更多缩进"
+        result = polish_text(text)
+        assert result == "行一\n  行二缩进\n    行三更多缩进"
 
     def test_strip_whitespace(self):
         """Leading and trailing whitespace should be removed."""

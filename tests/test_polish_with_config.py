@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from textformater.config import RuleConfig
-from textformater.polish import polish_text, polish_text_verbose
+from cjk_text_formatter.config import RuleConfig
+from cjk_text_formatter.polish import polish_text, polish_text_verbose
 
 
 class TestPolishWithDisabledRules:

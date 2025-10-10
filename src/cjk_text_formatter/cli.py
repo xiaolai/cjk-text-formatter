@@ -1,4 +1,4 @@
-"""Command-line interface for text-formater."""
+"""Command-line interface for cjk-text-formatter."""
 
 from __future__ import annotations
 
@@ -103,8 +103,8 @@ def main(
 
       \b
       # Format a file
-      textformat input.txt
-      textformat input.md --output formatted.md
+      ctf input.txt
+      ctf input.md --output formatted.md
 
       \b
       # Format files in a directory
@@ -113,7 +113,7 @@ def main(
 
       \b
       # Dry run (preview changes)
-      textformat input.txt --dry-run
+      ctf input.txt --dry-run
     """
     # Handle --validate-config command (validate and exit)
     if validate_config:

@@ -1,4 +1,4 @@
-# Text Formater
+# CJK Text Formatter
 
 A Python CLI tool for polishing text with Chinese typography rules. Automatically formats mixed Chinese-English text, fixes em-dash spacing, normalizes ellipsis, and more.
 
@@ -8,10 +8,25 @@ A Python CLI tool for polishing text with Chinese typography rules. Automaticall
 - **Ellipsis normalization**: Converts `. . .` or `. . . .` to `...` with proper spacing
 
 ### Chinese-Specific Rules
-- **Em-dash spacing**: Converts `--` to `——` with smart spacing around Chinese quotes `《》` and parentheses `（）`
-- **Quote spacing**: Adds spaces around Chinese quotation marks `""` (smart: excludes CJK punctuation with built-in visual spacing like ，。！？《》（）等)
-- **CJK-English spacing**: Automatically adds spaces between Chinese characters and English letters/numbers
-- **Multiple space collapsing**: Reduces consecutive spaces to single space
+
+**Quote & Punctuation:**
+- **Double quote spacing (`""`)**: Smart spacing that excludes CJK punctuation with built-in visual spacing
+- **Single quote spacing (`''`)**: Same smart rules as double quotes
+- **Em-dash spacing**: Converts `--` to `——` with context-aware spacing
+- **Full-width punctuation**: Normalizes `,`→`，` `.`→`。` in CJK context
+- **Full-width parentheses/brackets**: `(text)` → `（text）` in CJK context
+
+**Normalization:**
+- **Full-width alphanumeric**: Converts `１２３ＡＢＣ` → `123ABC`
+- **Consecutive punctuation cleanup**: `！！！` → `！` (configurable limit)
+
+**Spacing:**
+- **CJK-English spacing**: Auto-adds spaces between Chinese & English/numbers
+- **Currency spacing**: `$ 100` → `$100`
+- **Slash spacing**: `A / B` → `A/B`
+- **Multiple space collapsing**: Reduces consecutive spaces (preserves indentation)
+- **Trailing space removal**: Cleans up line endings
+- **Excessive newline collapsing**: Limits to max one blank line
 
 ### File Type Support
 - **Plain Text** (`.txt`): Direct formatting
@@ -19,6 +34,11 @@ A Python CLI tool for polishing text with Chinese typography rules. Automaticall
 - **HTML** (`.html`, `.htm`): Formats text content while preserving tags and `<code>`/`<pre>` elements
 
 ## Installation
+
+> **⚠️ BREAKING CHANGE in v0.3.0**: The package has been renamed from `textformater` to `cjk_text_formatter` to fix a spelling error. If you're upgrading from v0.2.x:
+> - Update imports: `from textformater` → `from cjk_text_formatter`
+> - CLI command (`ctf`) remains unchanged
+> - Config file name unchanged: `cjk-text-formatter.toml`
 
 ### Requirements
 
@@ -96,7 +116,7 @@ ctf ./docs/ --inplace -e .md -e .txt
 ### Python API
 
 ```python
-from textformater.polish import polish_text
+from cjk_text_formatter.polish import polish_text
 
 # Format text
 text = "文本English混合，数字123也包含。"
@@ -112,7 +132,7 @@ print(result)
 ```
 
 ```python
-from textformater.processors import process_file, find_files
+from cjk_text_formatter.processors import process_file, find_files
 
 # Process a single file
 result = process_file(Path("document.md"))
@@ -181,12 +201,24 @@ description = "Use proper multiplication sign"
 
 | Rule | Default | Description |
 |------|---------|-------------|
+| **Universal Rules** | | |
 | `ellipsis_normalization` | ✅ | Convert `. . .` to `...` |
+| **Quote & Em-dash** | | |
+| `quote_spacing` | ✅ | Add spaces around `""` with smart CJK handling |
+| `single_quote_spacing` | ✅ | Add spaces around `''` with smart CJK handling |
 | `dash_conversion` | ✅ | Convert `--` to `——` |
 | `emdash_spacing` | ✅ | Fix spacing around `——` |
-| `quote_spacing` | ✅ | Add spaces around `“”` |
-| `cjk_english_spacing` | ✅ | Space between Chinese & English |
-| `space_collapsing` | ✅ | Collapse multiple spaces |
+| **Normalization** | | |
+| `fullwidth_punctuation` | ✅ | Normalize `,` `.` `!` `?` `;` `:` width |
+| `fullwidth_parentheses` | ✅ | Normalize `()` → `（）` in CJK |
+| `fullwidth_brackets` | ❌ | Normalize `[]` → `【】` in CJK (off by default) |
+| `fullwidth_alphanumeric` | ✅ | Convert `１２３ＡＢＣ` → `123ABC` |
+| **Spacing & Cleanup** | | |
+| `cjk_english_spacing` | ✅ | Space between Chinese & English/numbers |
+| `currency_spacing` | ✅ | Remove space: `$ 100` → `$100` |
+| `slash_spacing` | ✅ | Remove space: `A / B` → `A/B` |
+| `space_collapsing` | ✅ | Collapse multiple spaces (preserve indents) |
+| `consecutive_punctuation_limit` | 0 | Limit repeats: `！！！` → `！` (0=off, 1=single, 2=double) |
 
 ### Custom Rules
 
@@ -344,7 +376,7 @@ The quote spacing rule intelligently avoids adding spaces when quotes are adjace
 pytest
 
 # Run with coverage
-pytest --cov=textformater
+pytest --cov=cjk_text_formatter
 
 # Run specific test file
 pytest tests/test_polish.py -v
@@ -355,14 +387,17 @@ pytest tests/test_polish.py -v
 ```
 cjk-text-formatter/
 ├── src/
-│   └── textformater/
+│   └── cjk_text_formatter/
 │       ├── __init__.py
 │       ├── polish.py        # Core polishing logic
 │       ├── processors.py    # File type processors
+│       ├── config.py        # Configuration management
 │       └── cli.py           # Command-line interface
 ├── tests/
 │   ├── test_polish.py       # Polish function tests
-│   └── test_processors.py  # File processor tests
+│   ├── test_processors.py  # File processor tests
+│   ├── test_config.py      # Configuration tests
+│   └── test_config_validation.py
 ├── pyproject.toml           # Package configuration
 └── README.md
 ```
@@ -377,7 +412,7 @@ To add a new typography rule:
        assert polish_text("input") == "expected_output"
    ```
 
-2. **Implement the rule** in `src/textformater/polish.py`:
+2. **Implement the rule** in `src/cjk_text_formatter/polish.py`:
    ```python
    def _new_rule(text: str) -> str:
        # Implementation
