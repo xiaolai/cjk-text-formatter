@@ -130,8 +130,13 @@ def _load_toml_file(file_path: Path) -> dict[str, Any] | None:
     try:
         with open(file_path, 'rb') as f:
             return tomllib.load(f)
-    except Exception:
-        # If config loading fails, return None
+    except (FileNotFoundError, PermissionError, tomllib.TOMLDecodeError):
+        # Expected errors - file doesn't exist, can't read, or invalid TOML
+        return None
+    except Exception as e:
+        # Unexpected error - log for debugging but don't crash
+        import sys
+        print(f"Warning: Unexpected error loading config {file_path}: {e}", file=sys.stderr)
         return None
 
 
