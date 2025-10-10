@@ -12,6 +12,25 @@ if TYPE_CHECKING:
 # Regular expressions
 CHINESE_RE = re.compile(r"[\u4e00-\u9fff]")
 
+# CJK punctuation constants
+CJK_TERMINAL_PUNCTUATION = '，。！？；：、'
+CJK_CLOSING_BRACKETS = '》」』】）〉'
+CJK_OPENING_BRACKETS = '《「『【（〈'
+CJK_EM_DASH = '——'
+
+# Pre-compiled regex patterns for performance
+ELLIPSIS_PATTERN = re.compile(r"\s*\.\s+\.\s+\.(?:\s+\.)*")
+ELLIPSIS_SPACING_PATTERN = re.compile(r"\.\.\.\s*(?=\S)")
+DASH_PATTERN = re.compile(r"([^\s])--([^\s])")
+EMDASH_SPACING_PATTERN = re.compile(r"([^\s])\s*——\s*([^\s])")
+FULLWIDTH_PARENS_PATTERN = re.compile(r'\(([\u4e00-\u9fff][^()]*)\)')
+FULLWIDTH_BRACKETS_PATTERN = re.compile(r'\[([\u4e00-\u9fff][^\[\]]*)\]')
+CURRENCY_SPACING_PATTERN = re.compile(r'([$¥€£₹USD|CNY|EUR|GBP])\s+(\d)')
+SLASH_SPACING_PATTERN = re.compile(r'(?<![/:])\s*/\s*(?!/)')
+MULTI_SPACE_PATTERN = re.compile(r"(\S) {2,}")
+TRAILING_SPACE_PATTERN = re.compile(r" +$", flags=re.MULTILINE)
+EXCESSIVE_NEWLINE_PATTERN = re.compile(r"\n{3,}")
+
 
 @dataclass
 class PolishStats:
@@ -90,9 +109,9 @@ def _normalize_ellipsis(text: str) -> str:
     """
     # Replace spaced dots (. . . or . . . .) with standard ellipsis
     # Also remove space before if pattern starts with space
-    text = re.sub(r"\s*\.\s+\.\s+\.(?:\s+\.)*", "...", text)
+    text = ELLIPSIS_PATTERN.sub("...", text)
     # Ensure exactly one space after ellipsis when followed by non-whitespace
-    text = re.sub(r"\.\.\.\s*(?=\S)", "... ", text)
+    text = ELLIPSIS_SPACING_PATTERN.sub("... ", text)
     return text
 
 
@@ -119,7 +138,7 @@ def _replace_dash(text: str) -> str:
         right_space = "" if after in ("（", "《") else " "
         return f"{before}{left_space}——{right_space}{after}"
 
-    return re.sub(r"([^\s])--([^\s])", repl, text)
+    return DASH_PATTERN.sub(repl, text)
 
 
 def _fix_emdash_spacing(text: str) -> str:
@@ -145,15 +164,17 @@ def _fix_emdash_spacing(text: str) -> str:
         right_space = "" if after in ("（", "《") else " "
         return f"{before}{left_space}——{right_space}{after}"
 
-    return re.sub(r"([^\s])\s*——\s*([^\s])", repl, text)
+    return EMDASH_SPACING_PATTERN.sub(repl, text)
 
 
-def _fix_quotes(text: str) -> str:
-    """Fix spacing around Chinese quotation marks "" with smart CJK punctuation handling.
+def _fix_quote_spacing(text: str, opening_quote: str, closing_quote: str) -> str:
+    """Fix spacing around quotation marks with smart CJK punctuation handling.
+
+    Generic implementation for any quote type (double, single, etc.).
 
     Rules:
-    - Add space before opening quote " if preceded by alphanumeric or Chinese
-    - Add space after closing quote " if followed by alphanumeric or Chinese
+    - Add space before opening quote if preceded by alphanumeric or Chinese
+    - Add space after closing quote if followed by alphanumeric or Chinese
     - NO space added when adjacent to CJK punctuation with built-in visual spacing:
       * Terminal punctuation: ，。！？；：、
       * Book title marks: 《》
@@ -165,29 +186,16 @@ def _fix_quotes(text: str) -> str:
 
     Args:
         text: Text to process
+        opening_quote: Opening quote character (e.g., " or ')
+        closing_quote: Closing quote character (e.g., " or ')
 
     Returns:
         Text with corrected quotation mark spacing
     """
-    # U+201C: " (LEFT DOUBLE QUOTATION MARK)
-    # U+201D: " (RIGHT DOUBLE QUOTATION MARK)
-    opening_quote = '\u201c'
-    closing_quote = '\u201d'
-
-    # CJK punctuation with built-in visual spacing (no space needed with quotes)
-    # Terminal punctuation
-    cjk_terminal = '，。！？；：、'
-    # Closing brackets/parentheses (have space on left side)
-    cjk_closing = '》」』】）〉'
-    # Opening brackets/parentheses (have space on right side)
-    cjk_opening = '《「『【（〈'
-    # Em-dash (two chars)
-    em_dash = '——'
-
     # All punctuation that should not have space before opening quote
-    no_space_before = cjk_closing + cjk_terminal
+    no_space_before = CJK_CLOSING_BRACKETS + CJK_TERMINAL_PUNCTUATION
     # All punctuation that should not have space after closing quote
-    no_space_after = cjk_opening + cjk_terminal
+    no_space_after = CJK_OPENING_BRACKETS + CJK_TERMINAL_PUNCTUATION
 
     def repl_before(match: re.Match[str]) -> str:
         """Add space before opening quote only if not preceded by CJK punct or em-dash."""
@@ -195,8 +203,6 @@ def _fix_quotes(text: str) -> str:
         # Check if we should skip adding space
         if before in no_space_before:
             return f'{before}{opening_quote}'
-        # Check for em-dash (need to look at last 2 chars of text before match)
-        # This is handled by checking if match starts with ——
         return f'{before} {opening_quote}'
 
     def repl_after(match: re.Match[str]) -> str:
@@ -209,73 +215,57 @@ def _fix_quotes(text: str) -> str:
 
     # Handle em-dash before opening quote (need special handling for 2-char sequence)
     # Replace ——" with ——" (no space)
-    text = re.sub(f'{em_dash}{opening_quote}', f'{em_dash}{opening_quote}', text)
+    text = re.sub(f'{CJK_EM_DASH}{opening_quote}', f'{CJK_EM_DASH}{opening_quote}', text)
 
     # Handle em-dash after closing quote
     # Replace "—— with "—— (no space)
-    text = re.sub(f'{closing_quote}{em_dash}', f'{closing_quote}{em_dash}', text)
+    text = re.sub(f'{closing_quote}{CJK_EM_DASH}', f'{closing_quote}{CJK_EM_DASH}', text)
 
-    # Add space before " if preceded by alphanumeric/Chinese (but not CJK punct)
+    # Add space before quote if preceded by alphanumeric/Chinese (but not CJK punct)
     text = re.sub(
-        f'([A-Za-z0-9\u4e00-\u9fff{cjk_closing}{cjk_terminal}]){opening_quote}',
+        f'([A-Za-z0-9\u4e00-\u9fff{CJK_CLOSING_BRACKETS}{CJK_TERMINAL_PUNCTUATION}]){opening_quote}',
         repl_before,
         text
     )
 
-    # Add space after " if followed by alphanumeric/Chinese (but not CJK punct)
+    # Add space after quote if followed by alphanumeric/Chinese (but not CJK punct)
     text = re.sub(
-        f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff{cjk_opening}{cjk_terminal}])',
+        f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff{CJK_OPENING_BRACKETS}{CJK_TERMINAL_PUNCTUATION}])',
         repl_after,
         text
     )
 
     return text
+
+
+def _fix_quotes(text: str) -> str:
+    """Fix spacing around Chinese double quotation marks "" with smart CJK punctuation handling.
+
+    Args:
+        text: Text to process
+
+    Returns:
+        Text with corrected quotation mark spacing
+    """
+    # U+201C: " (LEFT DOUBLE QUOTATION MARK)
+    # U+201D: " (RIGHT DOUBLE QUOTATION MARK)
+    return _fix_quote_spacing(text, '\u201c', '\u201d')
 
 
 def _fix_single_quotes(text: str) -> str:
     """Fix spacing around Chinese single quotation marks '' with smart CJK punctuation handling.
 
     Same rules as double quotes, but for single quotes.
+
+    Args:
+        text: Text to process
+
+    Returns:
+        Text with corrected quotation mark spacing
     """
-    opening_quote = '\u2018'  # '
-    closing_quote = '\u2019'  # '
-
-    cjk_terminal = '，。！？；：、'
-    cjk_closing = '》」』】）〉'
-    cjk_opening = '《「『【（〈'
-    em_dash = '——'
-
-    no_space_before = cjk_closing + cjk_terminal
-    no_space_after = cjk_opening + cjk_terminal
-
-    def repl_before(match: re.Match[str]) -> str:
-        before = match.group(1)
-        if before in no_space_before:
-            return f'{before}{opening_quote}'
-        return f'{before} {opening_quote}'
-
-    def repl_after(match: re.Match[str]) -> str:
-        after = match.group(1)
-        if after in no_space_after:
-            return f'{closing_quote}{after}'
-        return f'{closing_quote} {after}'
-
-    text = re.sub(f'{em_dash}{opening_quote}', f'{em_dash}{opening_quote}', text)
-    text = re.sub(f'{closing_quote}{em_dash}', f'{closing_quote}{em_dash}', text)
-
-    text = re.sub(
-        f'([A-Za-z0-9\u4e00-\u9fff{cjk_closing}{cjk_terminal}]){opening_quote}',
-        repl_before,
-        text
-    )
-
-    text = re.sub(
-        f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff{cjk_opening}{cjk_terminal}])',
-        repl_after,
-        text
-    )
-
-    return text
+    # U+2018: ' (LEFT SINGLE QUOTATION MARK)
+    # U+2019: ' (RIGHT SINGLE QUOTATION MARK)
+    return _fix_quote_spacing(text, '\u2018', '\u2019')
 
 
 def _normalize_fullwidth_punctuation(text: str) -> str:
@@ -303,7 +293,7 @@ def _normalize_fullwidth_punctuation(text: str) -> str:
         )
         # CJK + half + end → CJK + full
         text = re.sub(
-            f'([\u4e00-\u9fff]){re.escape(half)}(?=\s|$)',
+            f'([\u4e00-\u9fff]){re.escape(half)}(?=\\s|$)',
             f'\\1{full}',
             text
         )
@@ -314,14 +304,14 @@ def _normalize_fullwidth_punctuation(text: str) -> str:
 def _normalize_fullwidth_parentheses(text: str) -> str:
     """Normalize parentheses width in CJK context."""
     # Convert half-width to full-width when content is CJK
-    text = re.sub(r'\(([\u4e00-\u9fff][^()]*)\)', r'（\1）', text)
+    text = FULLWIDTH_PARENS_PATTERN.sub(r'（\1）', text)
     return text
 
 
 def _normalize_fullwidth_brackets(text: str) -> str:
     """Normalize brackets width in CJK context."""
     # Convert half-width to full-width when content is CJK
-    text = re.sub(r'\[([\u4e00-\u9fff][^\[\]]*)\]', r'【\1】', text)
+    text = FULLWIDTH_BRACKETS_PATTERN.sub(r'【\1】', text)
     return text
 
 
@@ -371,13 +361,8 @@ def _normalize_fullwidth_alphanumeric(text: str) -> str:
 
 def _fix_currency_spacing(text: str) -> str:
     """Remove spaces between currency symbols and amounts."""
-    # Common currency symbols
-    currencies = ['$', '¥', '€', '£', '₹', 'USD', 'CNY', 'EUR', 'GBP']
-
-    for currency in currencies:
-        # Remove space after currency symbol before number
-        text = re.sub(f'{re.escape(currency)}\\s+(\\d)', f'{currency}\\1', text)
-
+    # Remove space after currency symbol before number using pre-compiled pattern
+    text = CURRENCY_SPACING_PATTERN.sub(r'\1\2', text)
     return text
 
 
@@ -385,7 +370,7 @@ def _fix_slash_spacing(text: str) -> str:
     """Remove spaces around slashes."""
     # Remove spaces around / but not in URLs
     # Simple approach: if not preceded/followed by / (avoid //)
-    text = re.sub(r'(?<![/:])\s*/\s*(?!/)', '/', text)
+    text = SLASH_SPACING_PATTERN.sub('/', text)
     return text
 
 
@@ -483,13 +468,13 @@ def polish_text(text: str, config: RuleConfig | None = None) -> str:
         # Collapse multiple spaces to single space (preserve newlines and indentation)
         if config.is_enabled('space_collapsing'):
             # Match non-space + 2+ spaces to preserve leading indentation after newlines
-            text = re.sub(r"(\S) {2,}", r"\1 ", text)
+            text = MULTI_SPACE_PATTERN.sub(r"\1 ", text)
 
         # Remove trailing spaces at end of lines
-        text = re.sub(r" +$", "", text, flags=re.MULTILINE)
+        text = TRAILING_SPACE_PATTERN.sub("", text)
 
         # Collapse excessive newlines (3+) to max 2 (one blank line)
-        text = re.sub(r"\n{3,}", "\n\n", text)
+        text = EXCESSIVE_NEWLINE_PATTERN.sub("\n\n", text)
 
     # Apply custom regex rules
     text = _apply_custom_rules(text, config.custom_rules)
@@ -539,22 +524,19 @@ def polish_text_verbose(text: str, config: RuleConfig | None = None) -> tuple[st
 
     # Universal normalization - count ellipsis patterns
     if config.is_enabled('ellipsis_normalization'):
-        ellipsis_pattern = re.compile(r"\s*\.\s+\.\s+\.(?:\s+\.)*")
-        stats.ellipsis_normalized = len(ellipsis_pattern.findall(text))
+        stats.ellipsis_normalized = len(ELLIPSIS_PATTERN.findall(text))
         text = _normalize_ellipsis(text)
 
     # Chinese-specific polishing
     if contains_chinese(text):
         # Count dash conversions (-- to ——)
         if config.is_enabled('dash_conversion'):
-            dash_pattern = re.compile(r"([^\s])--([^\s])")
-            stats.dash_converted = len(dash_pattern.findall(text))
+            stats.dash_converted = len(DASH_PATTERN.findall(text))
             text = _replace_dash(text)
 
         # Count em-dash spacing fixes
         if config.is_enabled('emdash_spacing'):
-            emdash_spacing_pattern = re.compile(r"([^\s])\s*——\s*([^\s])")
-            matches = emdash_spacing_pattern.findall(text)
+            matches = EMDASH_SPACING_PATTERN.findall(text)
             # Only count if spacing is actually wrong
             temp_text = text
             for before, after in matches:
@@ -589,15 +571,14 @@ def polish_text_verbose(text: str, config: RuleConfig | None = None) -> tuple[st
         # Count multiple spaces (preserve newlines and indentation)
         if config.is_enabled('space_collapsing'):
             # Match non-space + 2+ spaces to preserve leading indentation
-            multi_space_pattern = re.compile(r"\S {2,}")
-            stats.spaces_collapsed = len(multi_space_pattern.findall(text))
-            text = re.sub(r"(\S) {2,}", r"\1 ", text)
+            stats.spaces_collapsed = len(MULTI_SPACE_PATTERN.findall(text))
+            text = MULTI_SPACE_PATTERN.sub(r"\1 ", text)
 
         # Remove trailing spaces at end of lines
-        text = re.sub(r" +$", "", text, flags=re.MULTILINE)
+        text = TRAILING_SPACE_PATTERN.sub("", text)
 
         # Collapse excessive newlines (3+) to max 2 (one blank line)
-        text = re.sub(r"\n{3,}", "\n\n", text)
+        text = EXCESSIVE_NEWLINE_PATTERN.sub("\n\n", text)
 
     # Apply custom regex rules and track counts
     for rule in config.custom_rules:

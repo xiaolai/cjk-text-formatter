@@ -48,3 +48,6 @@ AGENTS.md
 
 # User config file
 cjk-text-formatter.toml
+
+# Documentation (audit reports, internal docs)
+docs/

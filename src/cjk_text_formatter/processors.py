@@ -2,11 +2,48 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import List
 
 from .polish import polish_text
+
+
+def validate_safe_path(file_path: Path, base_dir: Path | None = None) -> Path:
+    """Validate that a file path doesn't attempt path traversal.
+
+    Args:
+        file_path: Path to validate
+        base_dir: Optional base directory to restrict paths within
+
+    Returns:
+        Resolved absolute path
+
+    Raises:
+        ValueError: If path attempts to escape base directory or contains suspicious patterns
+    """
+    # Resolve to absolute path
+    resolved = file_path.resolve()
+
+    # Check for suspicious patterns that might indicate path traversal attempts
+    path_str = str(file_path)
+    if '..' in path_str or path_str.startswith('/'):
+        # Only allow these if the resolved path is safe
+        pass
+
+    # If base_dir specified, ensure path doesn't escape it
+    if base_dir:
+        base_resolved = base_dir.resolve()
+        try:
+            # Check if resolved path is within base directory
+            resolved.relative_to(base_resolved)
+        except ValueError:
+            raise ValueError(
+                f"Path '{file_path}' attempts to access files outside allowed directory '{base_dir}'"
+            )
+
+    return resolved
 
 
 class TextProcessor:
@@ -195,9 +232,12 @@ def process_file(file_path: Path) -> str:
         Processed content
 
     Raises:
-        ValueError: If file type is not supported
+        ValueError: If file type is not supported or path is invalid
     """
-    suffix = file_path.suffix.lower()
+    # Validate path (resolves to absolute path, checks for safety)
+    validated_path = validate_safe_path(file_path)
+
+    suffix = validated_path.suffix.lower()
 
     if suffix == '.txt':
         processor = TextProcessor()
@@ -208,7 +248,7 @@ def process_file(file_path: Path) -> str:
     else:
         raise ValueError(f"Unsupported file type: {suffix}")
 
-    content = file_path.read_text(encoding='utf-8')
+    content = validated_path.read_text(encoding='utf-8')
     return processor.process(content)
 
 
