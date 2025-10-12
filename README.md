@@ -1,6 +1,6 @@
 # CJK Text Formatter
 
-A Python CLI tool for polishing text with Chinese typography rules. Automatically formats mixed Chinese-English text, fixes em-dash spacing, normalizes ellipsis, and more.
+A Python CLI tool for polishing text with CJK (Chinese, Japanese, Korean) typography rules. Automatically formats mixed CJK-English text, fixes em-dash spacing, normalizes ellipsis, and more.
 
 ## Features
 
@@ -33,6 +33,20 @@ A Python CLI tool for polishing text with Chinese typography rules. Automaticall
 - **Plain Text** (`.txt`): Direct formatting
 - **Markdown** (`.md`): Preserves code blocks (fenced, indented, inline)
 - **HTML** (`.html`, `.htm`): Formats text content while preserving tags and `<code>`/`<pre>` elements
+
+### CJK Language Support
+
+**Fully Supported Languages:**
+- **Chinese**: All Han characters (汉字) and Chinese punctuation
+- **Japanese**: Kanji (漢字), Hiragana (ひらがな), Katakana (カタカナ)
+- **Korean**: Hangul (한글) with Hanja (漢字)
+
+**Language-Specific Behavior:**
+- **Chinese & Japanese**: Fullwidth punctuation normalization (，。！？)
+- **Korean**: Preserves Western/halfwidth punctuation (. , ! ?)
+- **All CJK**: CJK-English spacing, quote spacing, alphanumeric normalization
+
+**Note**: CJK-specific typography rules apply when Han characters (Chinese/Kanji/Hanja) are present in the text. This covers the vast majority of real-world CJK text usage.
 
 ## Installation
 
@@ -525,6 +539,23 @@ Python 是一门编程语言，有 3.11 版本。
 ```bash
 $ ctf "《人生》--路遥著"
 《人生》—— 路遥著
+```
+
+### Format Japanese Text
+
+```bash
+$ ctf "私は毎日Raycastを使って仕事の効率化を助けてくれます"
+私は毎日 Raycast を使って仕事の効率化を助けてくれます
+
+$ ctf "気温は25°Cです"
+気温は 25°C です
+```
+
+### Format Korean Text
+
+```bash
+$ ctf "韓國에서test를합니다"
+韓國에서 test 를합니다
 ```
 
 ### Batch Process Markdown Files

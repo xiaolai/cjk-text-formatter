@@ -12,14 +12,24 @@ if TYPE_CHECKING:
 # Regular expressions
 CHINESE_RE = re.compile(r"[\u4e00-\u9fff]")
 
+# CJK character ranges for pattern matching
+HAN = r'\u4e00-\u9fff'              # Chinese characters + Japanese Kanji
+HIRAGANA = r'\u3040-\u309f'         # Japanese Hiragana
+KATAKANA = r'\u30a0-\u30ff'         # Japanese Katakana
+HANGUL = r'\uac00-\ud7af'           # Korean Hangul
+
+# Combined patterns for different use cases
+CJK_ALL = f'{HAN}{HIRAGANA}{KATAKANA}{HANGUL}'           # All CJK scripts
+CJK_NO_KOREAN = f'{HAN}{HIRAGANA}{KATAKANA}'             # Chinese + Japanese only
+
 # CJK punctuation constants
 CJK_TERMINAL_PUNCTUATION = '，。！？；：、'
 CJK_CLOSING_BRACKETS = '》」』】）〉'
 CJK_OPENING_BRACKETS = '《「『【（〈'
 CJK_EM_DASH = '——'
 
-# CJK character range for dash conversion (includes Han characters and CJK punctuation)
-CJK_CHARS_PATTERN = r'[\u4e00-\u9fff《》「」『』【】（）〈〉，。！？；：、]'
+# CJK character range for dash conversion (includes Han, Hiragana, Katakana, and CJK punctuation)
+CJK_CHARS_PATTERN = rf'[{HAN}{HIRAGANA}{KATAKANA}《》「」『』【】（）〈〉，。！？；：、]'
 
 # Pre-compiled regex patterns for performance
 ELLIPSIS_PATTERN = re.compile(r"\s*\.\s+\.\s+\.(?:\s+\.)*")
@@ -27,8 +37,8 @@ ELLIPSIS_SPACING_PATTERN = re.compile(r"\.\.\.\s*(?=\S)")
 # Match 2+ dashes between CJK characters (with optional whitespace)
 DASH_PATTERN = re.compile(rf'({CJK_CHARS_PATTERN})\s*-{{2,}}\s*({CJK_CHARS_PATTERN})')
 EMDASH_SPACING_PATTERN = re.compile(r"([^\s])\s*——\s*([^\s])")
-FULLWIDTH_PARENS_PATTERN = re.compile(r'\(([\u4e00-\u9fff][^()]*)\)')
-FULLWIDTH_BRACKETS_PATTERN = re.compile(r'\[([\u4e00-\u9fff][^\[\]]*)\]')
+FULLWIDTH_PARENS_PATTERN = re.compile(rf'\(([{CJK_NO_KOREAN}][^()]*)\)')
+FULLWIDTH_BRACKETS_PATTERN = re.compile(rf'\[([{CJK_NO_KOREAN}][^\[\]]*)\]')
 CURRENCY_SPACING_PATTERN = re.compile(r'([$¥€£₹USD|CNY|EUR|GBP])\s+(\d)')
 SLASH_SPACING_PATTERN = re.compile(r'(?<![/:])\s*/\s*(?!/)')
 MULTI_SPACE_PATTERN = re.compile(r"(\S) {2,}")
@@ -87,14 +97,19 @@ class PolishStats:
         return "Changes: " + ", ".join(changes)
 
 
-def contains_chinese(text: str) -> bool:
-    """Check if text contains any Chinese characters.
+def contains_cjk(text: str) -> bool:
+    """Check if text contains any CJK characters (Han/Kanji).
+
+    Note: This only checks for Han characters as a gate to determine if
+    CJK-specific typography rules should apply. Text with Han characters
+    typically needs CJK typography rules (em-dash, quotes, fullwidth punct).
+    Pure kana or Hangul text may not need all rules (e.g., fullwidth punct).
 
     Args:
         text: Text to check
 
     Returns:
-        True if text contains Chinese characters, False otherwise
+        True if text contains Han characters, False otherwise
     """
     return bool(CHINESE_RE.search(text))
 
@@ -221,18 +236,18 @@ def _fix_quote_spacing(text: str, opening_quote: str, closing_quote: str) -> str
             return f'{closing_quote}{after}'
         return f'{closing_quote} {after}'
 
-    # Add space before quote if preceded by alphanumeric/Chinese/em-dash (but not CJK punct)
+    # Add space before quote if preceded by alphanumeric/CJK/em-dash (but not CJK punct)
     # Include em-dash as a special case (2-char sequence)
     text = re.sub(
-        f'([A-Za-z0-9\u4e00-\u9fff{CJK_CLOSING_BRACKETS}{CJK_TERMINAL_PUNCTUATION}]|{CJK_EM_DASH}){opening_quote}',
+        f'([A-Za-z0-9{CJK_ALL}{CJK_CLOSING_BRACKETS}{CJK_TERMINAL_PUNCTUATION}]|{CJK_EM_DASH}){opening_quote}',
         repl_before,
         text
     )
 
-    # Add space after quote if followed by alphanumeric/Chinese/em-dash (but not CJK punct)
+    # Add space after quote if followed by alphanumeric/CJK/em-dash (but not CJK punct)
     # Include em-dash as a special case (2-char sequence)
     text = re.sub(
-        f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff{CJK_OPENING_BRACKETS}{CJK_TERMINAL_PUNCTUATION}]|{CJK_EM_DASH})',
+        f'{closing_quote}([A-Za-z0-9{CJK_ALL}{CJK_OPENING_BRACKETS}{CJK_TERMINAL_PUNCTUATION}]|{CJK_EM_DASH})',
         repl_after,
         text
     )
@@ -285,17 +300,17 @@ def _normalize_fullwidth_punctuation(text: str) -> str:
         ':': '：',
     }
 
-    # Convert to full-width when surrounded by CJK
+    # Convert to full-width when surrounded by CJK (Chinese + Japanese, NOT Korean)
     for half, full in half_to_full.items():
         # CJK + half + CJK → CJK + full + CJK
         text = re.sub(
-            f'([\u4e00-\u9fff]){re.escape(half)}([\u4e00-\u9fff])',
+            f'([{CJK_NO_KOREAN}]){re.escape(half)}([{CJK_NO_KOREAN}])',
             f'\\1{full}\\2',
             text
         )
         # CJK + half + end → CJK + full
         text = re.sub(
-            f'([\u4e00-\u9fff]){re.escape(half)}(?=\\s|$)',
+            f'([{CJK_NO_KOREAN}]){re.escape(half)}(?=\\s|$)',
             f'\\1{full}',
             text
         )
@@ -396,10 +411,10 @@ def _space_between(text: str) -> str:
     # Also supports currency symbols: $, ¥, €, £, ₹
     alphanum_pattern = r"(?:[$¥€£₹][ ]?)?[A-Za-z0-9]+(?:[%‰℃℉]|°[CcFf]?|[ ]?(?:USD|CNY|EUR|GBP|RMB))?"
 
-    # Chinese followed by alphanumeric/currency (with optional unit)
-    text = re.sub(f"([\u4e00-\u9fff])({alphanum_pattern})", r"\1 \2", text)
-    # Alphanumeric/currency (with optional unit) followed by Chinese
-    text = re.sub(f"({alphanum_pattern})([\u4e00-\u9fff])", r"\1 \2", text)
+    # CJK (all scripts) followed by alphanumeric/currency (with optional unit)
+    text = re.sub(f"([{CJK_ALL}])({alphanum_pattern})", r"\1 \2", text)
+    # Alphanumeric/currency (with optional unit) followed by CJK (all scripts)
+    text = re.sub(f"({alphanum_pattern})([{CJK_ALL}])", r"\1 \2", text)
     return text
 
 
@@ -434,8 +449,8 @@ def polish_text(text: str, config: RuleConfig | None = None) -> str:
     if config.is_enabled('ellipsis_normalization'):
         text = _normalize_ellipsis(text)
 
-    # Chinese-specific polishing
-    if contains_chinese(text):
+    # CJK-specific polishing (triggered by presence of Han characters)
+    if contains_cjk(text):
         # Normalization rules (run first)
         if config.is_enabled('fullwidth_alphanumeric'):
             text = _normalize_fullwidth_alphanumeric(text)
@@ -532,8 +547,8 @@ def polish_text_verbose(text: str, config: RuleConfig | None = None) -> tuple[st
         stats.ellipsis_normalized = len(ELLIPSIS_PATTERN.findall(text))
         text = _normalize_ellipsis(text)
 
-    # Chinese-specific polishing
-    if contains_chinese(text):
+    # CJK-specific polishing (triggered by presence of Han characters)
+    if contains_cjk(text):
         # Count dash conversions (-- to ——)
         if config.is_enabled('dash_conversion'):
             stats.dash_converted = len(DASH_PATTERN.findall(text))
@@ -560,16 +575,16 @@ def polish_text_verbose(text: str, config: RuleConfig | None = None) -> tuple[st
         if config.is_enabled('quote_spacing'):
             opening_quote = '\u201c'
             closing_quote = '\u201d'
-            quote_before = len(re.findall(f'([A-Za-z0-9\u4e00-\u9fff]){opening_quote}', text))
-            quote_after = len(re.findall(f'{closing_quote}([A-Za-z0-9\u4e00-\u9fff])', text))
+            quote_before = len(re.findall(f'([A-Za-z0-9{CJK_ALL}]){opening_quote}', text))
+            quote_after = len(re.findall(f'{closing_quote}([A-Za-z0-9{CJK_ALL}])', text))
             stats.quote_spacing_fixed = quote_before + quote_after
             text = _fix_quotes(text)
 
         # Count CJK-English spacing additions
         if config.is_enabled('cjk_english_spacing'):
             num_pattern = r"[A-Za-z0-9]+(?:[%‰℃℉]|°[CcFf]?)?"
-            cjk_before_eng = len(re.findall(f"([\u4e00-\u9fff])({num_pattern})", text))
-            eng_before_cjk = len(re.findall(f"({num_pattern})([\u4e00-\u9fff])", text))
+            cjk_before_eng = len(re.findall(f"([{CJK_ALL}])({num_pattern})", text))
+            eng_before_cjk = len(re.findall(f"({num_pattern})([{CJK_ALL}])", text))
             stats.cjk_english_spacing_added = cjk_before_eng + eng_before_cjk
             text = _space_between(text)
 

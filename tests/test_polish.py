@@ -3,7 +3,7 @@
 import pytest
 from cjk_text_formatter.polish import (
     polish_text,
-    contains_chinese,
+    contains_cjk,
     _replace_dash,
     _fix_emdash_spacing,
     _fix_quotes,
@@ -13,17 +13,22 @@ from cjk_text_formatter.polish import (
 )
 
 
-class TestContainsChinese:
-    """Test Chinese text detection."""
+class TestContainsCJK:
+    """Test CJK text detection (Han characters)."""
 
-    def test_contains_chinese_with_chinese(self):
-        assert contains_chinese("这是中文") is True
-        assert contains_chinese("mixed 中文 text") is True
+    def test_contains_cjk_with_han(self):
+        assert contains_cjk("这是中文") is True
+        assert contains_cjk("mixed 中文 text") is True
+        assert contains_cjk("日本語です") is True  # Japanese with Kanji
+        assert contains_cjk("한자韓字") is True  # Korean with Hanja
 
-    def test_contains_chinese_without_chinese(self):
-        assert contains_chinese("English only") is False
-        assert contains_chinese("123 abc") is False
-        assert contains_chinese("") is False
+    def test_contains_cjk_without_han(self):
+        assert contains_cjk("English only") is False
+        assert contains_cjk("123 abc") is False
+        assert contains_cjk("") is False
+        assert contains_cjk("ひらがな") is False  # Pure Hiragana (no Kanji)
+        assert contains_cjk("カタカナ") is False  # Pure Katakana (no Kanji)
+        assert contains_cjk("한글") is False  # Pure Hangul (no Hanja)
 
 
 class TestNormalizeEllipsis:
@@ -263,6 +268,79 @@ class TestSpaceBetween:
     def test_permille_spacing(self):
         """Test spacing with per mille symbols."""
         assert _space_between("浓度3‰的溶液") == "浓度 3‰ 的溶液"
+
+
+class TestJapaneseSupport:
+    """Test Japanese language support (Hiragana, Katakana, Kanji).
+
+    Note: CJK-specific rules only apply when Han characters (Kanji) are present.
+    Pure kana text is treated as non-CJK and doesn't get spacing rules applied.
+    This is by design - most real Japanese text contains Kanji.
+    """
+
+    def test_japanese_mixed_kanji_kana_english_spacing(self):
+        """Japanese with Kanji should get spaces around English (the reported bug fix)."""
+        # This was the original bug - を (Hiragana) after "raycast" didn't get space
+        assert polish_text("私は毎日Raycastを使って仕事の効率化を助けてくれます") == \
+               "私は毎日 Raycast を使って仕事の効率化を助けてくれます"
+        assert polish_text("日本語testテキスト") == "日本語 test テキスト"
+        assert polish_text("東京でappleを買う") == "東京で apple を買う"
+
+    def test_japanese_numbers_with_units(self):
+        """Japanese numbers with units should get spacing."""
+        assert polish_text("気温は25°Cです") == "気温は 25°C です"
+        assert polish_text("価格は100円です") == "価格は 100 円です"
+        assert polish_text("約5%程度") == "約 5% 程度"
+
+    def test_japanese_quote_spacing_with_kanji(self):
+        """Japanese quotes with Kanji should get proper spacing."""
+        # Using curly quotes (U+201C/D) not straight quotes
+        assert polish_text('私は\u201chello\u201dと言いました') == '私は \u201chello\u201d と言いました'
+        assert polish_text('東京は\u201cTokyo\u201dです') == '東京は \u201cTokyo\u201d です'
+
+    def test_japanese_pure_kana_no_spacing(self):
+        """Pure kana text without Kanji doesn't trigger CJK rules (by design)."""
+        # Pure Hiragana - no Han characters, so CJK rules don't apply
+        assert polish_text("これはtestですね") == "これはtestですね"
+        # Pure Katakana - no Han characters, so CJK rules don't apply
+        assert polish_text("テストtestケース") == "テストtestケース"
+
+    def test_japanese_fullwidth_punctuation_preserved(self):
+        """Japanese fullwidth punctuation should be preserved/normalized."""
+        # Japanese uses fullwidth punctuation like Chinese
+        assert polish_text("日本はアジアです。") == "日本はアジアです。"
+        assert polish_text("質問は何ですか？") == "質問は何ですか？"
+
+
+class TestKoreanSupport:
+    """Test Korean language support (Hangul).
+
+    Note: CJK-specific rules only apply when Han characters (Hanja) are present.
+    Pure Hangul text is treated as non-CJK and doesn't get spacing rules applied.
+    This is by design - most Korean text uses pure Hangul without Hanja.
+    """
+
+    def test_korean_with_hanja_english_spacing(self):
+        """Korean with Hanja (Han characters) should get spaces around English."""
+        # Korean with Hanja (mixed script)
+        assert polish_text("韓國에서test를합니다") == "韓國에서 test 를합니다"
+        assert polish_text("漢字apple사용") == "漢字 apple 사용"
+
+    def test_korean_pure_hangul_no_spacing(self):
+        """Pure Hangul text without Hanja doesn't trigger CJK rules (by design)."""
+        # Pure Hangul - no Han characters, so CJK rules don't apply
+        assert polish_text("나는매일raycast를사용합니다") == "나는매일raycast를사용합니다"
+        assert polish_text("이것은test입니다") == "이것은test입니다"
+        assert polish_text("한글apple텍스트") == "한글apple텍스트"
+
+    def test_korean_western_punctuation_preserved(self):
+        """Korean halfwidth (Western) punctuation should be preserved."""
+        # Korean uses Western punctuation . , not fullwidth 。，
+        text = "이것은 테스트입니다."
+        assert polish_text(text) == text  # Period stays halfwidth
+
+        text = "첫째, 둘째, 셋째입니다."
+        assert polish_text(text) == text  # Commas stay halfwidth
 
 
 class TestPolishText:
