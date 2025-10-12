@@ -408,13 +408,15 @@ def polish_text(text: str, config: RuleConfig | None = None) -> str:
 
     Universal rules (all languages):
     - Normalize ellipsis patterns (. . . → ...)
+    - Collapse excessive newlines (3+ → 2, one blank line max)
 
     Chinese-specific rules:
     - Convert -- to —— with proper spacing
     - Fix spacing around existing ——
-    - Fix spacing around Chinese quotes “”
+    - Fix spacing around Chinese quotes ""
     - Add spaces between Chinese and English/numbers
     - Collapse multiple consecutive spaces
+    - Remove trailing spaces at line endings
 
     Args:
         text: Text to polish
@@ -475,8 +477,9 @@ def polish_text(text: str, config: RuleConfig | None = None) -> str:
         # Remove trailing spaces at end of lines
         text = TRAILING_SPACE_PATTERN.sub("", text)
 
-        # Collapse excessive newlines (3+) to max 2 (one blank line)
-        text = EXCESSIVE_NEWLINE_PATTERN.sub("\n\n", text)
+    # Collapse excessive newlines (3+) to max 2 (one blank line)
+    # UNIVERSAL RULE - applies to all files, not just CJK
+    text = EXCESSIVE_NEWLINE_PATTERN.sub("\n\n", text)
 
     # Apply custom regex rules
     text = _apply_custom_rules(text, config.custom_rules)
@@ -579,8 +582,9 @@ def polish_text_verbose(text: str, config: RuleConfig | None = None) -> tuple[st
         # Remove trailing spaces at end of lines
         text = TRAILING_SPACE_PATTERN.sub("", text)
 
-        # Collapse excessive newlines (3+) to max 2 (one blank line)
-        text = EXCESSIVE_NEWLINE_PATTERN.sub("\n\n", text)
+    # Collapse excessive newlines (3+) to max 2 (one blank line)
+    # UNIVERSAL RULE - applies to all files, not just CJK
+    text = EXCESSIVE_NEWLINE_PATTERN.sub("\n\n", text)
 
     # Apply custom regex rules and track counts
     for rule in config.custom_rules:

@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import List
 
-from .polish import polish_text
+from .polish import polish_text, EXCESSIVE_NEWLINE_PATTERN
 
 
 def validate_safe_path(file_path: Path, base_dir: Path | None = None) -> Path:
@@ -115,6 +115,11 @@ class MarkdownProcessor:
             processed_lines.append(line)
 
         text = '\n'.join(processed_lines)
+
+        # Apply universal newline collapsing (3+ → 2, one blank line max)
+        # This must be done after joining lines, as line-by-line processing
+        # prevents the pattern from matching consecutive newlines
+        text = EXCESSIVE_NEWLINE_PATTERN.sub("\n\n", text)
 
         # Restore code blocks
         for i, code_block in enumerate(code_blocks):
