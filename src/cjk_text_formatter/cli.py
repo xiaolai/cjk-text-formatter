@@ -294,7 +294,7 @@ def process_single_file(
             content = file_path.read_text(encoding='utf-8')
             result, stats = polish_text_verbose(content, config=config)
         else:
-            result = process_file(file_path)
+            result = process_file(file_path, config=config)
             stats = None
 
         if dry_run:
@@ -376,7 +376,7 @@ def process_directory(
                 content = file_path.read_text(encoding='utf-8')
                 result, stats = polish_text_verbose(content, config=config)
             else:
-                result = process_file(file_path)
+                result = process_file(file_path, config=config)
                 stats = None
 
             if dry_run:

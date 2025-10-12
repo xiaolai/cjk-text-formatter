@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import List
 
+from .config import RuleConfig
 from .polish import polish_text, EXCESSIVE_NEWLINE_PATTERN
 
 
@@ -49,22 +50,23 @@ def validate_safe_path(file_path: Path, base_dir: Path | None = None) -> Path:
 class TextProcessor:
     """Processor for plain text files."""
 
-    def process(self, text: str) -> str:
+    def process(self, text: str, config: RuleConfig | None = None) -> str:
         """Process plain text content.
 
         Args:
             text: Text content to process
+            config: Optional rule configuration
 
         Returns:
             Polished text
         """
-        return polish_text(text)
+        return polish_text(text, config)
 
 
 class MarkdownProcessor:
     """Processor for Markdown files that preserves code blocks."""
 
-    def process(self, text: str) -> str:
+    def process(self, text: str, config: RuleConfig | None = None) -> str:
         """Process Markdown content, preserving code blocks.
 
         Preserves:
@@ -74,6 +76,7 @@ class MarkdownProcessor:
 
         Args:
             text: Markdown content to process
+            config: Optional rule configuration
 
         Returns:
             Polished markdown with code blocks preserved
@@ -110,7 +113,7 @@ class MarkdownProcessor:
 
             # Only process non-code lines
             if not in_indented_code and not is_code_line:
-                line = polish_text(line)
+                line = polish_text(line, config)
 
             processed_lines.append(line)
 
@@ -139,7 +142,7 @@ class HTMLProcessor:
         except ImportError:
             self._bs4_available = False
 
-    def process(self, html: str) -> str:
+    def process(self, html: str, config: RuleConfig | None = None) -> str:
         """Process HTML content, formatting text while preserving structure.
 
         Preserves:
@@ -148,16 +151,17 @@ class HTMLProcessor:
 
         Args:
             html: HTML content to process
+            config: Optional rule configuration
 
         Returns:
             HTML with polished text content
         """
         if self._bs4_available:
-            return self._process_with_bs4(html)
+            return self._process_with_bs4(html, config)
         else:
-            return self._process_simple(html)
+            return self._process_simple(html, config)
 
-    def _process_with_bs4(self, html: str) -> str:
+    def _process_with_bs4(self, html: str, config: RuleConfig | None = None) -> str:
         """Process HTML using BeautifulSoup."""
         from bs4 import BeautifulSoup, NavigableString
 
@@ -175,7 +179,7 @@ class HTMLProcessor:
                 if isinstance(child, NavigableString):
                     # Process text nodes
                     if child.string and child.string.strip():
-                        polished = polish_text(str(child.string))
+                        polished = polish_text(str(child.string), config)
                         child.replace_with(polished)
                 elif hasattr(child, 'children'):
                     # Recursively process child elements
@@ -192,7 +196,7 @@ class HTMLProcessor:
 
         return str(soup)
 
-    def _process_simple(self, html: str) -> str:
+    def _process_simple(self, html: str, config: RuleConfig | None = None) -> str:
         """Process HTML with simple regex-based approach (no BeautifulSoup).
 
         This is a fallback for when BeautifulSoup is not available.
@@ -214,11 +218,11 @@ class HTMLProcessor:
             text = match.group(0)
             # Don't process if it's inside a tag
             if text.strip():
-                return polish_text(text)
+                return polish_text(text, config)
             return text
 
         # Process text between tags (simple approach)
-        html = re.sub(r'>([^<]+)<', lambda m: f'>{polish_text(m.group(1))}<', html)
+        html = re.sub(r'>([^<]+)<', lambda m: f'>{polish_text(m.group(1), config)}<', html)
 
         # Restore code blocks
         for i, code_block in enumerate(code_blocks):
@@ -227,11 +231,12 @@ class HTMLProcessor:
         return html
 
 
-def process_file(file_path: Path) -> str:
+def process_file(file_path: Path, config: RuleConfig | None = None) -> str:
     """Process a file based on its extension.
 
     Args:
         file_path: Path to file to process
+        config: Optional rule configuration
 
     Returns:
         Processed content
@@ -254,7 +259,7 @@ def process_file(file_path: Path) -> str:
         raise ValueError(f"Unsupported file type: {suffix}")
 
     content = validated_path.read_text(encoding='utf-8')
-    return processor.process(content)
+    return processor.process(content, config)
 
 
 def find_files(
