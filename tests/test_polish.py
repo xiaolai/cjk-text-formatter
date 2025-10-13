@@ -438,9 +438,13 @@ class TestPolishText:
         assert result == "行一\n  行二缩进\n    行三更多缩进"
 
     def test_strip_whitespace(self):
-        """Leading and trailing whitespace should be removed."""
-        assert polish_text("  text  ") == "text"
-        assert polish_text("  中文  ") == "中文"
+        """Trailing whitespace should be removed, leading whitespace preserved."""
+        # Preserves leading whitespace (for markdown indentation)
+        assert polish_text("  text  ") == "  text"
+        assert polish_text("  中文  ") == "  中文"
+        # Still removes trailing whitespace
+        assert polish_text("text  ") == "text"
+        assert polish_text("中文  ") == "中文"
 
     def test_non_chinese_text_unchanged(self):
         """English text without Chinese should only get universal rules."""

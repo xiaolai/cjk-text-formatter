@@ -91,6 +91,42 @@ text--more
         # Code inside should NOT be formatted
         assert "text--more" in result  # Should remain unchanged
 
+    def test_preserve_indented_list_items(self):
+        """Test that indented list items preserve their indentation."""
+        processor = MarkdownProcessor()
+        # Use 2-space indents (list items), not 4+ spaces (code blocks)
+        text = """- 第一级English项目
+  - 第二级nested项目
+  - 另一个second项目
+- 回到first级别"""
+        result = processor.process(text)
+        # List items should be formatted
+        assert "第一级 English" in result
+        assert "第二级 nested" in result
+        assert "另一个 second" in result
+        assert "回到 first" in result
+        # But indentation should be preserved
+        assert "  - 第二级 nested" in result
+        assert "  - 另一个 second" in result
+
+    def test_preserve_list_item_indentation_two_space(self):
+        """Test that 2-space indented list items are processed (not treated as code)."""
+        processor = MarkdownProcessor()
+        text = """普通text行
+  缩进的content行
+回到normal级别"""
+        result = processor.process(text)
+        # Text should be formatted
+        assert "普通 text" in result
+        assert "缩进的 content" in result
+        assert "回到 normal" in result
+        # Indentation should be preserved
+        lines = result.split('\n')
+        assert lines[0] == "普通 text 行"
+        assert lines[1].startswith("  ")  # 2 spaces preserved
+        assert "缩进的 content 行" in lines[1]
+        assert not lines[2].startswith(" ")  # No leading spaces
+
 
 class TestHTMLProcessor:
     """Test HTML file processing."""

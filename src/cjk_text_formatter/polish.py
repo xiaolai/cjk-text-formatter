@@ -499,7 +499,7 @@ def polish_text(text: str, config: RuleConfig | None = None) -> str:
     # Apply custom regex rules
     text = _apply_custom_rules(text, config.custom_rules)
 
-    return text.strip()
+    return text.rstrip()  # Preserve leading whitespace (for markdown indentation)
 
 
 def _apply_custom_rules(text: str, custom_rules: list) -> str:
@@ -619,4 +619,4 @@ def polish_text_verbose(text: str, config: RuleConfig | None = None) -> tuple[st
             # Skip invalid rules
             continue
 
-    return text.strip(), stats
+    return text.rstrip(), stats  # Preserve leading whitespace (for markdown indentation)
