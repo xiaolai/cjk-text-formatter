@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 # Regular expressions
 CHINESE_RE = re.compile(r"[\u4e00-\u9fff]")
+HANGUL_RE = re.compile(r"[\uac00-\ud7af]")
 
 # CJK character ranges for pattern matching
 HAN = r'\u4e00-\u9fff'              # Chinese characters + Japanese Kanji
@@ -98,20 +99,22 @@ class PolishStats:
 
 
 def contains_cjk(text: str) -> bool:
-    """Check if text contains any CJK characters (Han/Kanji).
+    """Check if text contains any CJK characters (Han/Kanji/Hangul).
 
-    Note: This only checks for Han characters as a gate to determine if
-    CJK-specific typography rules should apply. Text with Han characters
-    typically needs CJK typography rules (em-dash, quotes, fullwidth punct).
-    Pure kana or Hangul text may not need all rules (e.g., fullwidth punct).
+    Note: This checks for Han characters (Chinese/Japanese Kanji) or Korean Hangul
+    as a gate to determine if CJK-specific typography rules should apply.
+    Text with these characters typically needs CJK typography rules
+    (spacing with English/numbers, em-dash, quotes). Note that fullwidth
+    punctuation rules use CJK_NO_KOREAN to exclude Korean, as Korean uses
+    Western punctuation.
 
     Args:
         text: Text to check
 
     Returns:
-        True if text contains Han characters, False otherwise
+        True if text contains Han or Hangul characters, False otherwise
     """
-    return bool(CHINESE_RE.search(text))
+    return bool(CHINESE_RE.search(text) or HANGUL_RE.search(text))
 
 
 def _normalize_ellipsis(text: str) -> str:

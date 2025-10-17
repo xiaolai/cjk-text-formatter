@@ -14,7 +14,7 @@ from cjk_text_formatter.polish import (
 
 
 class TestContainsCJK:
-    """Test CJK text detection (Han characters)."""
+    """Test CJK text detection (Han characters and Korean Hangul)."""
 
     def test_contains_cjk_with_han(self):
         assert contains_cjk("这是中文") is True
@@ -22,13 +22,16 @@ class TestContainsCJK:
         assert contains_cjk("日本語です") is True  # Japanese with Kanji
         assert contains_cjk("한자韓字") is True  # Korean with Hanja
 
-    def test_contains_cjk_without_han(self):
+    def test_contains_cjk_with_hangul(self):
+        assert contains_cjk("한글") is True  # Pure Hangul (Korean alphabet)
+        assert contains_cjk("안녕하세요") is True  # Korean greeting
+
+    def test_contains_cjk_without_han_or_hangul(self):
         assert contains_cjk("English only") is False
         assert contains_cjk("123 abc") is False
         assert contains_cjk("") is False
         assert contains_cjk("ひらがな") is False  # Pure Hiragana (no Kanji)
         assert contains_cjk("カタカナ") is False  # Pure Katakana (no Kanji)
-        assert contains_cjk("한글") is False  # Pure Hangul (no Hanja)
 
 
 class TestNormalizeEllipsis:
@@ -315,9 +318,10 @@ class TestJapaneseSupport:
 class TestKoreanSupport:
     """Test Korean language support (Hangul).
 
-    Note: CJK-specific rules only apply when Han characters (Hanja) are present.
-    Pure Hangul text is treated as non-CJK and doesn't get spacing rules applied.
-    This is by design - most Korean text uses pure Hangul without Hanja.
+    Korean Hangul characters now trigger CJK spacing rules, so spaces will be
+    added between Hangul and English/numbers, just like with Chinese and Japanese.
+    Korean punctuation rules still exclude fullwidth punctuation conversion
+    since Korean uses Western punctuation.
     """
 
     def test_korean_with_hanja_english_spacing(self):
@@ -326,12 +330,12 @@ class TestKoreanSupport:
         assert polish_text("韓國에서test를합니다") == "韓國에서 test 를합니다"
         assert polish_text("漢字apple사용") == "漢字 apple 사용"
 
-    def test_korean_pure_hangul_no_spacing(self):
-        """Pure Hangul text without Hanja doesn't trigger CJK rules (by design)."""
-        # Pure Hangul - no Han characters, so CJK rules don't apply
-        assert polish_text("나는매일raycast를사용합니다") == "나는매일raycast를사용합니다"
-        assert polish_text("이것은test입니다") == "이것은test입니다"
-        assert polish_text("한글apple텍스트") == "한글apple텍스트"
+    def test_korean_pure_hangul_with_spacing(self):
+        """Pure Hangul text now gets CJK spacing rules applied."""
+        # Pure Hangul - now triggers CJK rules for spacing
+        assert polish_text("나는매일raycast를사용합니다") == "나는매일 raycast 를사용합니다"
+        assert polish_text("이것은test입니다") == "이것은 test 입니다"
+        assert polish_text("한글apple텍스트") == "한글 apple 텍스트"
 
     def test_korean_western_punctuation_preserved(self):
         """Korean halfwidth (Western) punctuation should be preserved."""
