@@ -38,6 +38,13 @@ ELLIPSIS_SPACING_PATTERN = re.compile(r"\.\.\.\s*(?=\S)")
 # Match 2+ dashes between CJK characters (with optional whitespace)
 DASH_PATTERN = re.compile(rf'({CJK_CHARS_PATTERN})\s*-{{2,}}\s*({CJK_CHARS_PATTERN})')
 EMDASH_SPACING_PATTERN = re.compile(r"([^\s])\s*——\s*([^\s])")
+# Adjacent quote patterns (closing followed by opening)
+ADJACENT_DOUBLE_QUOTE_PATTERN = re.compile(r'\u201d\u201c')
+ADJACENT_SINGLE_QUOTE_PATTERN = re.compile(r'\u2019\u2018')
+# CJK-parenthesis spacing patterns
+CJK_OPENING_PAREN_PATTERN = re.compile(rf'([{CJK_ALL}])\(')
+CLOSING_PAREN_CJK_PATTERN = re.compile(rf'\)([{CJK_ALL}])')
+# Fullwidth normalization patterns
 FULLWIDTH_PARENS_PATTERN = re.compile(rf'\(([{CJK_NO_KOREAN}][^()]*)\)')
 FULLWIDTH_BRACKETS_PATTERN = re.compile(rf'\[([{CJK_NO_KOREAN}][^\[\]]*)\]')
 CURRENCY_SPACING_PATTERN = re.compile(r'([$¥€£₹USD|CNY|EUR|GBP])\s+(\d)')
@@ -273,7 +280,7 @@ def _fix_quotes(text: str) -> str:
 
 
 def _fix_single_quotes(text: str) -> str:
-    """Fix spacing around Chinese single quotation marks ‘’ with smart CJK punctuation handling.
+    """Fix spacing around Chinese single quotation marks '' with smart CJK punctuation handling.
 
     Same rules as double quotes, but for single quotes.
 
@@ -286,6 +293,52 @@ def _fix_single_quotes(text: str) -> str:
     # U+2018: ' (LEFT SINGLE QUOTATION MARK)
     # U+2019: ' (RIGHT SINGLE QUOTATION MARK)
     return _fix_quote_spacing(text, '\u2018', '\u2019')
+
+
+def _fix_adjacent_quotes(text: str) -> str:
+    """Add space between adjacent quotation marks.
+
+    Handles cases where closing quote is immediately followed by opening quote,
+    which is common in Chinese text when multiple quoted phrases appear consecutively.
+
+    Examples:
+        他说"好"他又说"对" → 他说"好" 他又说"对"
+        'first''second' → 'first' 'second'
+
+    Args:
+        text: Text to process
+
+    Returns:
+        Text with spaces added between adjacent quotes
+    """
+    # U+201D (") followed by U+201C (") → add space
+    text = ADJACENT_DOUBLE_QUOTE_PATTERN.sub('\u201d \u201c', text)
+    # U+2019 (') followed by U+2018 (') → add space
+    text = ADJACENT_SINGLE_QUOTE_PATTERN.sub('\u2019 \u2018', text)
+    return text
+
+
+def _fix_cjk_parenthesis_spacing(text: str) -> str:
+    """Add space between CJK characters and half-width parentheses.
+
+    Only applies to half-width parentheses (), not full-width （）.
+    Full-width parentheses are handled by fullwidth_parentheses rule.
+
+    Examples:
+        这是测试(test)内容 → 这是测试 (test) 内容
+        中文(注释)文本 → 中文 (注释) 文本
+
+    Args:
+        text: Text to process
+
+    Returns:
+        Text with spaces added between CJK and parentheses
+    """
+    # Add space between CJK character and opening paren
+    text = CJK_OPENING_PAREN_PATTERN.sub(r'\1 (', text)
+    # Add space between closing paren and CJK character
+    text = CLOSING_PAREN_CJK_PATTERN.sub(r') \1', text)
+    return text
 
 
 def _normalize_fullwidth_punctuation(text: str) -> str:
@@ -452,6 +505,11 @@ def polish_text(text: str, config: RuleConfig | None = None) -> str:
     if config.is_enabled('ellipsis_normalization'):
         text = _normalize_ellipsis(text)
 
+    # Universal quote spacing (applies to all languages)
+    # Note: adjacent_quote_spacing must run BEFORE quote_spacing
+    if config.is_enabled('adjacent_quote_spacing'):
+        text = _fix_adjacent_quotes(text)
+
     # CJK-specific polishing (triggered by presence of Han characters)
     if contains_cjk(text):
         # Normalization rules (run first)
@@ -459,8 +517,7 @@ def polish_text(text: str, config: RuleConfig | None = None) -> str:
             text = _normalize_fullwidth_alphanumeric(text)
         if config.is_enabled('fullwidth_punctuation'):
             text = _normalize_fullwidth_punctuation(text)
-        if config.is_enabled('fullwidth_parentheses'):
-            text = _normalize_fullwidth_parentheses(text)
+        # Note: fullwidth_parentheses must run AFTER cjk_parenthesis_spacing
         if config.is_enabled('fullwidth_brackets'):
             text = _normalize_fullwidth_brackets(text)
 
@@ -477,6 +534,12 @@ def polish_text(text: str, config: RuleConfig | None = None) -> str:
         # Spacing rules
         if config.is_enabled('cjk_english_spacing'):
             text = _space_between(text)
+        # Note: cjk_parenthesis_spacing must run BEFORE fullwidth_parentheses
+        if config.is_enabled('cjk_parenthesis_spacing'):
+            text = _fix_cjk_parenthesis_spacing(text)
+        # Now convert remaining () to （） in CJK context
+        if config.is_enabled('fullwidth_parentheses'):
+            text = _normalize_fullwidth_parentheses(text)
         if config.is_enabled('currency_spacing'):
             text = _fix_currency_spacing(text)
         if config.is_enabled('slash_spacing'):

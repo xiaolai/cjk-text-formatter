@@ -36,10 +36,18 @@ quote_spacing = true
 #   《书名》“引用”（注） → 《书名》“引用”（注） (NO space - brackets have visual spacing)
 
 single_quote_spacing = true
-# Same smart rules as double quotes, but for single quotes ‘’
+# Same smart rules as double quotes, but for single quotes ''
 # Examples:
-#   文本‘引用’文本       → 文本 ‘引用’ 文本
-#   文本，‘引用’。       → 文本，‘引用’。
+#   文本'引用'文本       → 文本 '引用' 文本
+#   文本，'引用'。       → 文本，'引用'。
+
+adjacent_quote_spacing = true
+# Add space between adjacent quotation marks (closing followed by opening)
+# Common in Chinese text with consecutive quotes
+# Examples:
+#   他说"好"他又说"对"   → 他说"好" 他又说"对"
+#   'first''second'     → 'first' 'second'
+#   "A""B""C"           → "A" "B" "C"
 
 # ----------------------------------------------------------------------------
 # Em-Dash Rules
@@ -100,6 +108,14 @@ cjk_english_spacing = true
 #   数字123内容        → 数字 123 内容
 #   温度25°C很高       → 温度 25°C 很高
 #   占比5%左右         → 占比 5% 左右
+
+cjk_parenthesis_spacing = true
+# Add spaces between CJK characters and half-width parentheses
+# Only applies to half-width (), not full-width （）
+# Examples:
+#   这是测试(test)内容   → 这是测试 (test) 内容
+#   中文(注释)文本       → 中文 (注释) 文本
+#   한글(Korean)텍스트   → 한글 (Korean) 텍스트
 
 currency_spacing = true
 # Remove space between currency symbols and amounts
@@ -261,6 +277,36 @@ pattern = '\b4/5\b'
 replacement = '⅘'
 description = "Convert 4/5 to Unicode fraction"
 
+# ----------------------------------------------------------------------------
+# Advanced Examples: Operator Spacing (Use with Caution)
+# ----------------------------------------------------------------------------
+# WARNING: These rules are context-dependent and may cause unwanted changes:
+#   - Breaks negative numbers (3 - 2 → 3 − 2, but -5 might become − 5)
+#   - Breaks URLs (http://example.com/path-to-file)
+#   - Breaks compound words (well-known, state-of-the-art)
+#   - May interfere with code snippets, math expressions, etc.
+#
+# Only enable these if you specifically need them and understand the trade-offs.
+# Uncomment to use:
+
+# [[custom_rules]]
+# name = "operator_spacing_minus"
+# pattern = '\s*-\s*'
+# replacement = ' − '
+# description = "Use Unicode minus sign with spacing (CAUTION: breaks negative numbers, URLs, hyphens)"
+
+# [[custom_rules]]
+# name = "operator_spacing_equals"
+# pattern = '\s*=\s*'
+# replacement = ' = '
+# description = "Add spacing around equals sign (CAUTION: may affect code)"
+
+# [[custom_rules]]
+# name = "operator_spacing_plus"
+# pattern = '\s*\+\s*'
+# replacement = ' + '
+# description = "Add spacing around plus sign (CAUTION: may affect phone numbers, code)"
+
 # ============================================================================
 # Rule Execution Order
 # ============================================================================
@@ -273,14 +319,16 @@ description = "Convert 4/5 to Unicode fraction"
 #   6. Em-dash spacing
 #   7. Double quote spacing
 #   8. Single quote spacing
-#   9. CJK-English spacing
-#  10. Currency spacing
-#  11. Slash spacing
-#  12. Consecutive punctuation cleanup
-#  13. Space collapsing
-#  14. Trailing space removal
-#  15. Excessive newline collapsing
-#  16. Custom rules (in order defined above)
+#   9. Adjacent quote spacing ("" → " ")
+#  10. CJK-English spacing
+#  11. CJK-parenthesis spacing
+#  12. Currency spacing
+#  13. Slash spacing
+#  14. Consecutive punctuation cleanup
+#  15. Space collapsing
+#  16. Trailing space removal
+#  17. Excessive newline collapsing
+#  18. Custom rules (in order defined above)
 #
 # This order ensures:
 #   - Normalization happens first

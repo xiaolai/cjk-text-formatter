@@ -347,6 +347,59 @@ class TestKoreanSupport:
         assert polish_text(text) == text  # Commas stay halfwidth
 
 
+class TestAdjacentQuoteSpacing:
+    """Test spacing between adjacent quotation marks."""
+
+    def test_adjacent_double_quotes(self):
+        """Add space when closing double quote followed by opening double quote."""
+        # 他说"好"他又说"对" → 他说 "好" 他又说 "对"
+        # Note: adjacent_quote_spacing runs first, then quote_spacing adds spaces around all quotes
+        assert polish_text('他说\u201c好\u201d他又说\u201c对\u201d') == '他说 \u201c好\u201d 他又说 \u201c对\u201d'
+        assert polish_text('\u201cA\u201d\u201cB\u201d') == '\u201cA\u201d \u201cB\u201d'
+
+    def test_adjacent_single_quotes(self):
+        """Add space when closing single quote followed by opening single quote."""
+        # 'first''second' → 'first' 'second' (no CJK, so single_quote_spacing doesn't add extra spaces)
+        assert polish_text('\u2018first\u2019\u2018second\u2019') == '\u2018first\u2019 \u2018second\u2019'
+        # 他说'好'她说'是' → 他说 '好' 她说 '是' (single_quote_spacing adds spaces around all quotes)
+        assert polish_text('他说\u2018好\u2019她说\u2018是\u2019') == '他说 \u2018好\u2019 她说 \u2018是\u2019'
+
+    def test_multiple_adjacent_quotes(self):
+        """Handle multiple quote pairs."""
+        # "A""B""C" → "A" "B" "C" (no CJK, so quote_spacing doesn't affect)
+        assert polish_text('\u201cA\u201d\u201cB\u201d\u201cC\u201d') == '\u201cA\u201d \u201cB\u201d \u201cC\u201d'
+        # Already spaced quotes should not be affected (no CJK context)
+        assert polish_text('\u201cA\u201d \u201cB\u201d') == '\u201cA\u201d \u201cB\u201d'
+
+
+class TestCJKParenthesisSpacing:
+    """Test spacing between CJK characters and half-width parentheses."""
+
+    def test_cjk_with_paren_enclosed_text(self):
+        """Add spaces around parentheses, then () may convert to （） in CJK context."""
+        # English content inside parens: spaces added, parens stay half-width
+        assert polish_text('这是测试(test)内容') == '这是测试 (test) 内容'
+        # CJK content: spaces added, then fullwidth_parentheses converts () to （）
+        assert polish_text('文本(注释)继续') == '文本 （注释） 继续'
+        # Korean + English: spaces added, parens stay half-width
+        assert polish_text('한글(Korean)텍스트') == '한글 (Korean) 텍스트'
+
+    def test_cjk_before_opening_paren(self):
+        """Add space between CJK and opening parenthesis."""
+        assert polish_text('中文(English') == '中文 (English'
+        assert polish_text('日本語(test') == '日本語 (test'
+
+    def test_closing_paren_before_cjk(self):
+        """Add space between closing parenthesis and CJK."""
+        assert polish_text('English)中文') == 'English) 中文'
+        assert polish_text('test)日本語') == 'test) 日本語'
+
+    def test_already_spaced_parentheses(self):
+        """Already spaced parentheses will add extra spaces, then space_collapsing cleans them up."""
+        # The rule adds spaces, creating double spaces, then space_collapsing fixes it
+        assert polish_text('中文 (test) 文本') == '中文 (test) 文本'  # Double spaces collapsed to single
+
+
 class TestPolishText:
     """Test complete text polishing with all rules applied."""
 
