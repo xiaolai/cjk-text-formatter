@@ -41,14 +41,6 @@ single_quote_spacing = true
 #   文本'引用'文本       → 文本 '引用' 文本
 #   文本，'引用'。       → 文本，'引用'。
 
-adjacent_quote_spacing = true
-# Add space between adjacent quotation marks (closing followed by opening)
-# Common in Chinese text with consecutive quotes
-# Examples:
-#   他说"好"他又说"对"   → 他说"好" 他又说"对"
-#   'first''second'     → 'first' 'second'
-#   "A""B""C"           → "A" "B" "C"
-
 # ----------------------------------------------------------------------------
 # Em-Dash Rules
 # ----------------------------------------------------------------------------
@@ -278,6 +270,25 @@ replacement = '⅘'
 description = "Convert 4/5 to Unicode fraction"
 
 # ----------------------------------------------------------------------------
+# Advanced Examples: Adjacent Quote Spacing
+# ----------------------------------------------------------------------------
+# Add space between adjacent quotation marks (closing followed by opening).
+# Common in Chinese text when multiple quoted phrases appear consecutively.
+# Uncomment to use:
+
+# [[custom_rules]]
+# name = "adjacent_curly_double_quote_spacing"
+# pattern = '\u201d\u201c'
+# replacement = '\u201d \u201c'
+# description = "Add one space between adjacent curly double quotes"
+
+# [[custom_rules]]
+# name = "adjacent_curly_single_quote_spacing"
+# pattern = '\u2019\u2018'
+# replacement = '\u2019 \u2018'
+# description = "Add one space between adjacent curly single quotes"
+
+# ----------------------------------------------------------------------------
 # Advanced Examples: Operator Spacing (Use with Caution)
 # ----------------------------------------------------------------------------
 # WARNING: These rules are context-dependent and may cause unwanted changes:
@@ -319,16 +330,15 @@ description = "Convert 4/5 to Unicode fraction"
 #   6. Em-dash spacing
 #   7. Double quote spacing
 #   8. Single quote spacing
-#   9. Adjacent quote spacing ("" → " ")
-#  10. CJK-English spacing
-#  11. CJK-parenthesis spacing
-#  12. Currency spacing
-#  13. Slash spacing
-#  14. Consecutive punctuation cleanup
-#  15. Space collapsing
-#  16. Trailing space removal
-#  17. Excessive newline collapsing
-#  18. Custom rules (in order defined above)
+#   9. CJK-English spacing
+#  10. CJK-parenthesis spacing
+#  11. Currency spacing
+#  12. Slash spacing
+#  13. Consecutive punctuation cleanup
+#  14. Space collapsing
+#  15. Trailing space removal
+#  16. Excessive newline collapsing
+#  17. Custom rules (in order defined above)
 #
 # This order ensures:
 #   - Normalization happens first

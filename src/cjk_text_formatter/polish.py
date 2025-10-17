@@ -38,9 +38,6 @@ ELLIPSIS_SPACING_PATTERN = re.compile(r"\.\.\.\s*(?=\S)")
 # Match 2+ dashes between CJK characters (with optional whitespace)
 DASH_PATTERN = re.compile(rf'({CJK_CHARS_PATTERN})\s*-{{2,}}\s*({CJK_CHARS_PATTERN})')
 EMDASH_SPACING_PATTERN = re.compile(r"([^\s])\s*——\s*([^\s])")
-# Adjacent quote patterns (closing followed by opening)
-ADJACENT_DOUBLE_QUOTE_PATTERN = re.compile(r'\u201d\u201c')
-ADJACENT_SINGLE_QUOTE_PATTERN = re.compile(r'\u2019\u2018')
 # CJK-parenthesis spacing patterns
 CJK_OPENING_PAREN_PATTERN = re.compile(rf'([{CJK_ALL}])\(')
 CLOSING_PAREN_CJK_PATTERN = re.compile(rf'\)([{CJK_ALL}])')
@@ -295,29 +292,6 @@ def _fix_single_quotes(text: str) -> str:
     return _fix_quote_spacing(text, '\u2018', '\u2019')
 
 
-def _fix_adjacent_quotes(text: str) -> str:
-    """Add space between adjacent quotation marks.
-
-    Handles cases where closing quote is immediately followed by opening quote,
-    which is common in Chinese text when multiple quoted phrases appear consecutively.
-
-    Examples:
-        他说"好"他又说"对" → 他说"好" 他又说"对"
-        'first''second' → 'first' 'second'
-
-    Args:
-        text: Text to process
-
-    Returns:
-        Text with spaces added between adjacent quotes
-    """
-    # U+201D (") followed by U+201C (") → add space
-    text = ADJACENT_DOUBLE_QUOTE_PATTERN.sub('\u201d \u201c', text)
-    # U+2019 (') followed by U+2018 (') → add space
-    text = ADJACENT_SINGLE_QUOTE_PATTERN.sub('\u2019 \u2018', text)
-    return text
-
-
 def _fix_cjk_parenthesis_spacing(text: str) -> str:
     """Add space between CJK characters and half-width parentheses.
 
@@ -504,11 +478,6 @@ def polish_text(text: str, config: RuleConfig | None = None) -> str:
     # Universal normalization (applies to all languages)
     if config.is_enabled('ellipsis_normalization'):
         text = _normalize_ellipsis(text)
-
-    # Universal quote spacing (applies to all languages)
-    # Note: adjacent_quote_spacing must run BEFORE quote_spacing
-    if config.is_enabled('adjacent_quote_spacing'):
-        text = _fix_adjacent_quotes(text)
 
     # CJK-specific polishing (triggered by presence of Han characters)
     if contains_cjk(text):
