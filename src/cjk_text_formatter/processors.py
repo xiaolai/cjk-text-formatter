@@ -258,7 +258,8 @@ def process_file(file_path: Path, config: RuleConfig | None = None) -> str:
     else:
         raise ValueError(f"Unsupported file type: {suffix}")
 
-    content = validated_path.read_text(encoding='utf-8')
+    with open(validated_path, 'r', encoding='utf-8', newline='') as f:
+        content = f.read()
     return processor.process(content, config)
 
 

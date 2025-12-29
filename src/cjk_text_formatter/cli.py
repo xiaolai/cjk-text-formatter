@@ -304,12 +304,14 @@ def process_single_file(
             if stats:
                 click.echo(stats.format_summary(), err=True)
         elif inplace:
-            file_path.write_text(result, encoding='utf-8')
+            with open(file_path, 'w', encoding='utf-8', newline='') as f:
+                f.write(result)
             click.secho(f"✓ Formatted: {file_path}", fg='green')
             if stats:
                 click.echo(stats.format_summary(), err=True)
         elif output:
-            output.write_text(result, encoding='utf-8')
+            with open(output, 'w', encoding='utf-8', newline='') as f:
+                f.write(result)
             click.secho(f"✓ Written to: {output}", fg='green')
             if stats:
                 click.echo(stats.format_summary(), err=True)
@@ -385,7 +387,8 @@ def process_directory(
                 if stats:
                     click.echo(stats.format_summary(), err=True)
             else:
-                file_path.write_text(result, encoding='utf-8')
+                with open(file_path, 'w', encoding='utf-8', newline='') as f:
+                    f.write(result)
                 if verbose and stats:
                     click.secho(f"✓ {file_path}", fg='green')
                     click.echo(f"  {stats.format_summary()}", err=True)
